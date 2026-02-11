@@ -1,6 +1,8 @@
 import { supabase } from "../lib/supabase";
 
 export default function Dashboard() {
+  console.log("Dashboard render");
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#004385] text-white">
       <h1 className="text-5xl mb-4">Account Verified 🎉</h1>
