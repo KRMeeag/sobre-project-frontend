@@ -1,7 +1,469 @@
-const POSPage = () => {
-    return (
-        <h1> POS Page</h1>
-    )
+import { useState } from "react";
+
+// TypeScript Interfaces for our data
+interface Product {
+  id: number;
+  name: string;
+  price: number;
 }
+
+interface CartItem {
+  cartId: string;
+  productId: number;
+  name: string;
+  price: number;
+  quantity: number;
+  variationCode: string;
+}
+
+const POSPage = () => {
+  const [activeCategory, setActiveCategory] = useState("All");
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  
+  // Cart State
+  const [cart, setCart] = useState<CartItem[]>([]);
+
+  // Variation Modal State
+  const [var1Qty, setVar1Qty] = useState(1);
+  const [var2Qty, setVar2Qty] = useState(0);
+
+  // Checkout Modal State
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [tenderedAmount, setTenderedAmount] = useState<number | "">("");
+
+  const categories = [
+    "All", "Snacks", "Frozen", "Canned", "Drinks", 
+    "Household", "Personal Care", "Restricted", "Electronics", "Apparel"
+  ];
+
+  const products: Product[] = [
+    { id: 1, name: "C2 Red Medium", price: 35.0 },
+    { id: 2, name: "C2 Green Medium", price: 35.0 },
+    { id: 3, name: "Calbee Honey Butter", price: 50.0 },
+    { id: 4, name: "Calbee Classic Salted", price: 50.0 },
+    { id: 5, name: "Pringles Original", price: 70.0 },
+    { id: 6, name: "Pringles Sour Cream", price: 140.0 },
+    { id: 7, name: "Safeguard White", price: 25.0 },    
+    { id: 8, name: "Safeguard Pink", price: 40.0 },
+  ];
+
+  // Add items from modal to the cart
+  const handleRecordSale = () => {
+    if (!selectedProduct) return;
+
+    const newCartItems: CartItem[] = [];
+
+    if (var1Qty > 0) {
+      newCartItems.push({
+        cartId: `${selectedProduct.id}-var1-${Date.now()}`,
+        productId: selectedProduct.id,
+        name: selectedProduct.name,
+        price: selectedProduct.price,
+        quantity: var1Qty,
+        variationCode: "00000001"
+      });
+    }
+
+    if (var2Qty > 0) {
+      newCartItems.push({
+        cartId: `${selectedProduct.id}-var2-${Date.now()}`,
+        productId: selectedProduct.id,
+        name: selectedProduct.name,
+        price: selectedProduct.price,
+        quantity: var2Qty,
+        variationCode: "00000002"
+      });
+    }
+
+    if (newCartItems.length > 0) {
+      setCart((prev) => [...prev, ...newCartItems]);
+    }
+
+    setSelectedProduct(null);
+    setVar1Qty(1);
+    setVar2Qty(0);
+  };
+
+  const removeFromCart = (cartIdToRemove: string) => {
+    setCart((prev) => prev.filter(item => item.cartId !== cartIdToRemove));
+  };
+
+  // Finalize Checkout
+  const handleFinalizeCheckout = () => {
+    alert("Sale Recorded Successfully!");
+    setCart([]);
+    setIsCheckoutOpen(false);
+    setTenderedAmount("");
+  };
+
+  // Math Calculations
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const discountAmount = 0; // Hardcoded 0 for simplicity, but UI shows 12% space
+  const payableAmount = subtotal - discountAmount;
+  const change = typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
+  
+  const invoiceNo = "00004654"; 
+
+  return (
+    <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800">
+      
+      {/* Top Dark Blue Strip */}
+      <div className="h-3 md:h-4 w-full bg-[#033860] shadow-sm z-40 shrink-0"></div>
+
+      <div className="flex flex-1 overflow-hidden min-w-0 w-full">
+        
+        {/* LEFT SIDE: MAIN POS AREA */}
+        <div className="flex-1 flex flex-col h-full px-4 pt-4 md:px-6 md:pt-5 min-w-0 max-w-full">
+          
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shrink-0 w-full">
+            <h1 className="text-xl md:text-2xl font-bold text-[#223843] tracking-tight truncate" style={{ fontFamily: 'Raleway, sans-serif' }}>
+              Hello, User101
+            </h1>
+            
+            <div className="relative w-full md:max-w-xs lg:max-w-sm h-10 flex items-center bg-white border border-gray-300 rounded-lg px-3 shrink-0 shadow-sm transition-shadow focus-within:ring-2 focus-within:ring-[#087ca7] focus-within:border-transparent">
+              <input 
+                type="text" 
+                placeholder="Search for Items..." 
+                className="w-full text-sm text-gray-700 focus:outline-none bg-transparent"
+                style={{ fontFamily: 'Work Sans, sans-serif' }}
+              />
+              <svg className="w-4 h-4 text-gray-400 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+              </svg>
+            </div>
+          </div>
+
+          {/* Categories Section */}
+          <div className="w-full max-w-full shrink-0 mb-4 relative group/scroll">
+            <div className="bg-white rounded-[15px] shadow-sm border border-gray-100 p-2 w-full max-w-full">
+              <div className="flex flex-nowrap gap-2 overflow-x-auto touch-pan-x snap-x snap-mandatory pb-1 
+                [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-transparent 
+                group-hover/scroll:[&::-webkit-scrollbar-thumb]:bg-[#b4b4b4] hover:[&::-webkit-scrollbar-thumb]:!bg-[#73768c] 
+                [&::-webkit-scrollbar-thumb]:rounded-full transition-all duration-300">
+                {categories.map((category) => (
+                  <button 
+                    key={category}
+                    title={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={`w-[calc((100%-3rem)/7)] flex-none px-1 py-1.5 flex items-center justify-center text-xs md:text-sm font-bold transition-all rounded-lg border-2 snap-start
+                      ${activeCategory === category ? 'bg-[#087ca7]/10 border-[#087ca7] text-[#087ca7]' : 'text-gray-600 hover:bg-gray-50 border-transparent'}`}
+                    style={{ fontFamily: 'Raleway, sans-serif' }}
+                  >
+                    <span className="truncate px-1">{category}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Products Grid */}
+          <main className="flex-1 overflow-y-auto pb-6 pr-2 custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+              {products.map((product) => (
+                <button 
+                  key={product.id} 
+                  onClick={() => setSelectedProduct(product)}
+                  className="bg-white rounded-[15px] shadow-sm border border-gray-100 flex flex-col items-center p-3 hover:shadow-md hover:border-[#087ca7]/30 hover:-translate-y-0.5 transition-all shrink-0 group"
+                >
+                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-100 border border-gray-200 rounded-full mb-2 flex items-center justify-center overflow-hidden shrink-0 group-hover:border-[#087ca7]/50 transition-colors">
+                     <span className="text-gray-400 text-[10px] font-medium">Image</span>
+                  </div>
+                  <h3 className="text-xs md:text-sm font-bold text-gray-800 text-center leading-snug mb-1 line-clamp-2" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                    {product.name}
+                  </h3>
+                  <p className="text-sm md:text-base font-bold text-[#087ca7] mt-auto" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                    P{product.price.toFixed(2)}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </main>
+
+        </div>
+
+        {/* RIGHT SIDE: CART PANEL */}
+        <aside className="w-[300px] lg:w-[350px] xl:w-[380px] h-full bg-white border-l border-[#b4b4b4] shadow-[-4px_0_15px_rgba(0,0,0,0.05)] flex flex-col z-30 shrink-0">
+          
+          <div className="p-5 border-b border-gray-200 shrink-0">
+            <h2 className="text-xl md:text-2xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>
+              Shopping Cart
+            </h2>
+          </div>
+
+          <div className="flex-1 overflow-y-auto relative flex flex-col bg-slate-50/50 custom-scrollbar [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-gray-300 px-4">
+            {cart.length === 0 ? (
+              <div className="flex-1 flex flex-col items-center justify-center opacity-50 pb-10">
+                 <svg className="w-20 h-20 md:w-24 md:h-24 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                 </svg>
+                 <p className="text-xl font-bold text-[#767676]" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                   No Items in Cart!
+                 </p>
+              </div>
+            ) : (
+              <div className="space-y-3 py-4">
+                {cart.map((item) => (
+                  <div key={item.cartId} className="flex items-center justify-between bg-[#e9e9e9] rounded-xl p-3">
+                    <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#818181" className="shrink-0 hidden md:block">
+                        <path d="M10 6L16 12L10 18" stroke="#818181" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+                      </svg>
+                      <span className="font-bold text-black text-lg md:text-xl w-4 text-center shrink-0" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                        {item.quantity}
+                      </span>
+                      <div className="flex flex-col ml-1 overflow-hidden">
+                        <span className="font-bold text-black text-sm md:text-base leading-tight truncate" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                          {item.name}
+                        </span>
+                        <span className="text-black text-xs md:text-sm mt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                          P{(item.price * item.quantity).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => removeFromCart(item.cartId)}
+                      className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full hover:bg-red-100 group transition-colors ml-2"
+                    >
+                      <svg width="20" height="20" viewBox="0 0 24 24" className="fill-[#fd1d1d] opacity-80 group-hover:opacity-100">
+                        <path fillRule="evenodd" clipRule="evenodd" d="M12 2.25C6.615 2.25 2.25 6.615 2.25 12C2.25 17.385 6.615 21.75 12 21.75C17.385 21.75 21.75 17.385 21.75 12C21.75 6.615 17.385 2.25 12 2.25ZM10.28 9.22C9.988 8.927 9.513 8.927 9.22 9.22C8.927 9.513 8.927 9.988 9.22 10.28L10.94 12L9.22 13.72C8.927 14.013 8.927 14.488 9.22 14.78C9.513 15.073 9.988 15.073 10.28 14.78L12 13.06L13.72 14.78C14.013 15.073 14.488 15.073 14.78 14.78C15.073 14.488 15.073 14.013 14.78 13.72L13.06 12L14.78 10.28C15.073 9.988 15.073 9.513 14.78 9.22C14.488 8.927 14.013 8.927 13.72 9.22L12 10.94L10.28 9.22Z" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-[#dbd3d8] p-5 md:p-6 flex flex-col shrink-0">
+            <div className="space-y-3 mb-5">
+              <div className="flex justify-between items-center">
+                <span className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>Subtotal:</span>
+                <span className="text-base text-black font-semibold" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>Discount:</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-[#73768c] font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>0%</span>
+                  <div className="bg-[#f9f9f9] border border-[#73768c] rounded-lg px-3 py-1 flex items-center">
+                    <span className="text-sm text-black font-semibold" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{discountAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-gray-300">
+                <span className="text-xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>Payable Amount:</span>
+                <span className="text-2xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>P{payableAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <button 
+              disabled={cart.length === 0}
+              onClick={() => setIsCheckoutOpen(true)}
+              className="w-full py-3.5 bg-[#2aa564] hover:bg-[#218b52] disabled:bg-gray-400 disabled:cursor-not-allowed rounded-[10px] flex items-center justify-center gap-2 transition-colors shrink-0 active:scale-[0.98]"
+            >
+               <span className="text-lg md:text-xl font-bold text-[#f5f5f5]" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                 Proceed to Checkout
+               </span>
+               <svg width="24" height="24" viewBox="0 0 24 24" className="fill-[#f5f5f5]">
+                  <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13.71 15.71C13.61 15.8 13.48 15.85 13.35 15.85C13.22 15.85 13.09 15.8 13 15.71C12.8 15.51 12.8 15.2 13 15L15.29 12.71L8.35 12.71C8.07 12.71 7.85 12.49 7.85 12.21C7.85 11.93 8.07 11.71 8.35 11.71L15.29 11.71L13 9.42C12.8 9.22 12.8 8.91 13 8.71C13.2 8.51 13.51 8.51 13.71 8.71L16.65 11.65C16.85 11.85 16.85 12.16 16.65 12.36L13.71 15.71Z" />
+               </svg>
+            </button>
+          </div>
+        </aside>
+
+      </div>
+
+      {/* --- 1. WHICH VARIATION MODAL --- */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 relative flex flex-col max-h-[85vh]">
+            <button onClick={() => { setSelectedProduct(null); setVar1Qty(1); setVar2Qty(0); }} className="absolute top-5 right-5 text-[#73768c] hover:text-black transition-colors">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6.757 17.24L17 7m-10.243 0L17 17.24" /></svg>
+            </button>
+
+            <h2 className="text-2xl font-bold text-black mb-4" style={{ fontFamily: 'Raleway, sans-serif' }}>
+              Which variation?
+            </h2>
+            <div className="w-full border-t border-[#bab6b6] mb-2 shrink-0"></div>
+
+            <div className="w-full overflow-x-auto overflow-y-auto custom-scrollbar flex-1 min-h-[150px] pr-2">
+              <table className="w-full text-center border-collapse min-w-[500px]">
+                <thead>
+                  <tr>
+                    <th className="pb-3 pt-2 font-normal text-[#ada7a7] text-sm" style={{ fontFamily: 'Raleway, sans-serif' }}>Bar Code</th>
+                    <th className="pb-3 pt-2 font-normal text-[#ada7a7] text-sm" style={{ fontFamily: 'Raleway, sans-serif' }}>Stocked On</th>
+                    <th className="pb-3 pt-2 font-normal text-[#ada7a7] text-sm" style={{ fontFamily: 'Raleway, sans-serif' }}>Amount</th>
+                    <th className="pb-3 pt-2 font-normal text-[#ada7a7] text-sm" style={{ fontFamily: 'Raleway, sans-serif' }}>Expiration Date</th>
+                    <th className="pb-3 pt-2 font-normal text-[#ada7a7] text-sm" style={{ fontFamily: 'Raleway, sans-serif' }}>Quantity</th>
+                  </tr>
+                </thead>
+                <tbody style={{ fontFamily: 'Raleway, sans-serif' }}>
+                  <tr className="border-b border-gray-100">
+                    <td className="py-4 text-[#223843] text-sm font-medium">00000001</td>
+                    <td className="py-4 text-[#223843] text-sm font-medium">February 26, 2025</td>
+                    <td className="py-4 text-[#223843] text-sm font-medium">23</td>
+                    <td className="py-4 text-[#223843] text-sm font-medium">May 19, 2025</td>
+                    <td className="py-4">
+                      <div className="flex items-center bg-[#f9f9f9] border border-[#73768c] rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden">
+                        <button onClick={() => setVar1Qty(Math.max(0, var1Qty - 1))} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
+                        <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>{var1Qty}</span>
+                        <button onClick={() => setVar1Qty(var1Qty + 1)} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td className="py-4 text-[#223843] text-sm font-medium">00000002</td>
+                    <td className="py-4 text-[#223843] text-sm font-medium">March 26, 2025</td>
+                    <td className="py-4 text-[#223843] text-sm font-medium">23</td>
+                    <td className="py-4 text-[#223843] text-sm font-medium">July 25, 2025</td>
+                    <td className="py-4">
+                      <div className="flex items-center bg-[#f9f9f9] border border-[#73768c] rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden">
+                        <button onClick={() => setVar2Qty(Math.max(0, var2Qty - 1))} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
+                        <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>{var2Qty}</span>
+                        <button onClick={() => setVar2Qty(var2Qty + 1)} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="w-full border-t border-[#bab6b6] mt-4 pt-4 flex justify-end gap-3 shrink-0">
+              <button onClick={() => { setSelectedProduct(null); setVar1Qty(1); setVar2Qty(0); }} className="px-6 py-2 rounded-lg bg-[#b13e3e] hover:bg-red-800 text-[#e9e9e9] text-sm font-bold transition-all shadow-sm active:scale-95" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                Cancel Sale
+              </button>
+              <button onClick={handleRecordSale} disabled={var1Qty === 0 && var2Qty === 0} className="px-6 py-2 rounded-lg bg-[#033860] hover:bg-blue-900 disabled:bg-gray-400 disabled:cursor-not-allowed text-[#e9e9e9] text-sm font-bold transition-all shadow-sm active:scale-95" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                Record Sale
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- 2. CHECKOUT SUMMARY MODAL --- */}
+      {isCheckoutOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[25px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.1)] w-full max-w-3xl p-6 md:p-8 relative flex flex-col max-h-[90vh]">
+            
+            {/* Close Button */}
+            <button 
+              onClick={() => { setIsCheckoutOpen(false); setTenderedAmount(""); }}
+              className="absolute top-5 right-5 text-[#73768c] hover:text-black transition-colors"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6.757 17.24L17 7m-10.243 0L17 17.24" />
+              </svg>
+            </button>
+
+            {/* Header */}
+            <div className="mb-4">
+              <h2 className="text-[20px] text-black tracking-wide" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 200 }}>
+                Details for Invoice No. {invoiceNo}
+              </h2>
+            </div>
+
+            <div className="w-full border-t-2 border-[#bab6b6] mb-2 shrink-0"></div>
+
+            {/* Cart Items Table */}
+            <div className="w-full overflow-x-auto overflow-y-auto custom-scrollbar flex-1 min-h-[150px] mb-4 pr-2">
+              <table className="w-full text-center border-collapse min-w-[650px]">
+                <thead>
+                  <tr>
+                    <th className="pb-4 pt-2 font-normal text-[#ada7a7] text-[18px] text-left pl-4" style={{ fontFamily: 'Raleway, sans-serif' }}>Item</th>
+                    <th className="pb-4 pt-2 font-normal text-[#ada7a7] text-[18px]" style={{ fontFamily: 'Raleway, sans-serif' }}>Price Individual</th>
+                    <th className="pb-4 pt-2 font-normal text-[#ada7a7] text-[18px]" style={{ fontFamily: 'Raleway, sans-serif' }}>Amount</th>
+                    <th className="pb-4 pt-2 font-normal text-[#ada7a7] text-[18px] text-right pr-4" style={{ fontFamily: 'Raleway, sans-serif' }}>Subtotal</th>
+                  </tr>
+                </thead>
+                <tbody style={{ fontFamily: 'Raleway, sans-serif' }}>
+                  {cart.map((item) => (
+                    <tr key={item.cartId} className="border-b border-[#efeded]">
+                      <td className="py-3 text-left pl-4">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-full border border-[#b4b4b4] bg-[#b4b4b4] shrink-0 flex items-center justify-center overflow-hidden">
+                             <span className="text-[10px] text-white">Img</span>
+                          </div>
+                          <span className="font-bold text-[#223843] text-[18px]">{item.name}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 text-[#223843] text-[18px] font-normal">P{item.price.toFixed(2)}</td>
+                      <td className="py-3 text-[#223843] text-[18px] font-normal">{item.quantity}</td>
+                      <td className="py-3 text-[#223843] text-[18px] font-normal text-right pr-4">P{(item.price * item.quantity).toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="w-full border-t-2 border-[#bab6b6] mb-6 shrink-0"></div>
+
+            {/* Payment Summary */}
+            <div className="flex flex-col md:flex-row justify-between gap-8 shrink-0 px-2 md:px-4">
+              
+              {/* Left side math */}
+              <div className="flex flex-col gap-3 w-full md:w-1/2">
+                <div className="flex items-center">
+                  <span className="w-[150px] md:w-[170px] text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>Subtotal:</span>
+                  <span className="text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="w-[150px] md:w-[170px] text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>Discount: <span className="ml-2 text-black">12%</span></span>
+                  <span className="text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{discountAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center mt-2">
+                  <span className="w-[150px] md:w-[170px] text-[24px] font-bold text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>Total Price:</span>
+                  <span className="text-[24px] font-bold text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{payableAmount.toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Right side tender */}
+              <div className="flex flex-col gap-4 w-full md:w-[310px]">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[18px] text-[#bab6b6]" style={{ fontFamily: 'Work Sans, sans-serif' }}>Tendered Amount:</span>
+                  <div className="relative w-full h-[52px] bg-[#f9f9f9] border border-[#73768c] rounded-[10px] flex items-center px-4 overflow-hidden">
+                    <span className="text-[18px] text-[#223843]" style={{ fontFamily: 'Work Sans, sans-serif' }}>P</span>
+                    <input 
+                      type="number"
+                      value={tenderedAmount}
+                      onChange={(e) => setTenderedAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                      className="w-full bg-transparent text-[18px] text-[#223843] ml-1 outline-none font-normal"
+                      style={{ fontFamily: 'Work Sans, sans-serif' }}
+                      placeholder="0.00"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-[18px] font-bold text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>Change:</span>
+                  <span className="text-[18px] font-bold text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{change < 0 ? "0.00" : change.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-4 mt-8 shrink-0">
+              <button 
+                onClick={() => { setIsCheckoutOpen(false); setTenderedAmount(""); }}
+                className="w-[139px] h-[51px] rounded-[8px] bg-[#b13e3e] hover:bg-red-800 text-[#e9e9e9] text-[18px] font-bold tracking-[0.2px] transition-all shadow-sm active:scale-95"
+                style={{ fontFamily: 'Raleway, sans-serif' }}
+              >
+                Cancel Sale
+              </button>
+              <button 
+                onClick={handleFinalizeCheckout}
+                disabled={typeof tenderedAmount !== "number" || tenderedAmount < payableAmount}
+                className="w-[139px] h-[51px] rounded-[8px] bg-[#033860] hover:bg-blue-900 disabled:bg-gray-400 disabled:cursor-not-allowed text-[#e9e9e9] text-[18px] font-bold tracking-[0.2px] transition-all shadow-sm active:scale-95"
+                style={{ fontFamily: 'Raleway, sans-serif' }}
+              >
+                Record Sale
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+};
 
 export default POSPage;
