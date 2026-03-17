@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-// Updated Interfaces to match your Supabase Schema
+// Updated Interfaces
 interface StockItem {
   id: string;
   barcode: string;
@@ -17,7 +17,6 @@ interface Product {
   stock: StockItem[]; 
 }
 
-// Updated CartItem to support merging variations of the same product
 interface CartItem {
   productId: string; 
   name: string;
@@ -31,20 +30,12 @@ const POSPage = () => {
   const [searchQuery, setSearchQuery] = useState(""); 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
-  // Real Data States
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
-  
-  // NEW: Discount state allows number or empty string (for when user clears the input)
   const [discountPercent, setDiscountPercent] = useState<number | "">(0); 
-
-  // Variation Modal State
   const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
-
-  // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState<number | "">("");
 
@@ -53,21 +44,26 @@ const POSPage = () => {
     "Household", "Personal Care", "Restricted", "Electronics", "Apparel"
   ];
 
-  // Fetch Data from Backend
+  // 🚀 BACKEND INTEGRATION
   useEffect(() => {
     const fetchInventory = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch("http://localhost:5001/api/inventory");
+        const params = new URLSearchParams({ limit: "50" });
+        if (activeCategory !== "All") params.append("category", activeCategory);
+        if (searchQuery.trim() !== "") params.append("search", searchQuery.trim());
+
+        const response = await fetch(`http://localhost:5001/api/inventory?${params.toString()}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
-        const data = await response.json();
+        const result = await response.json();
 
-        if (Array.isArray(data)) {
-          setProducts(data);
+        if (result && Array.isArray(result.data)) {
+          setProducts(result.data);
         } else {
-          console.error("Backend did not return an array:", data);
+          console.error("Backend did not return data in expected { data: [] } format:", result);
+          setProducts([]);
         }
-        
       } catch (error) {
         console.error("Error fetching inventory:", error);
       } finally {
@@ -75,17 +71,35 @@ const POSPage = () => {
       }
     };
 
-    fetchInventory();
-  }, []);
+    const timeoutId = setTimeout(() => {
+      fetchInventory();
+    }, 300);
 
-  // Filter logic for Categories and Search Bar
-  const filteredProducts = products.filter(product => {
-    const matchesCategory = activeCategory === "All" || product.category === activeCategory;
-    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+    return () => clearTimeout(timeoutId);
+  }, [activeCategory, searchQuery]); 
 
-  // Initialize all stock quantities to 0 when a product is clicked
+  // ==========================================
+  // NEW VIRTUAL STOCK LOGIC
+  // ==========================================
+
+  // Check how many of a specific stock item are currently in the cart
+  const getQtyInCart = (productId: string, stockId: string) => {
+    const cartItem = cart.find(item => item.productId === productId);
+    if (!cartItem) return 0;
+    const variation = cartItem.variations.find(v => v.stockId === stockId);
+    return variation ? variation.quantity : 0;
+  };
+
+  // Check the total available stock for a product (subtracting cart items)
+  const getTotalAvailableStock = (product: Product) => {
+    if (!product.stock) return 0;
+    return product.stock.reduce((total, s) => {
+      return total + Math.max(0, s.amount - getQtyInCart(product.id, s.id));
+    }, 0);
+  };
+
+  // ==========================================
+
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
     const initialQtys: Record<string, number> = {};
@@ -105,7 +119,6 @@ const POSPage = () => {
     });
   };
 
-  // Merge products in the cart
   const handleRecordSale = () => {
     if (!selectedProduct || !selectedProduct.stock) return;
 
@@ -125,7 +138,6 @@ const POSPage = () => {
     setCart(prevCart => {
       const existingItemIndex = prevCart.findIndex(item => item.productId === selectedProduct.id);
       
-      // If product exists in cart, merge the quantities and variations
       if (existingItemIndex >= 0) {
         const updatedCart = [...prevCart];
         const item = updatedCart[existingItemIndex];
@@ -143,9 +155,7 @@ const POSPage = () => {
           variations: mergedVariations
         };
         return updatedCart;
-      } 
-      // If product doesn't exist, add it as a new row
-      else {
+      } else {
         return [...prevCart, {
           productId: selectedProduct.id,
           name: selectedProduct.name,
@@ -164,25 +174,61 @@ const POSPage = () => {
     setCart((prev) => prev.filter(item => item.productId !== productIdToRemove));
   };
 
-  const handleFinalizeCheckout = () => {
-    alert("Ready to hit the Sales API with Merged Cart!");
-    console.log("Cart Payload for Backend:", cart);
-    setCart([]);
-    setIsCheckoutOpen(false);
-    setTenderedAmount("");
-    setDiscountPercent(0);
+  const handleFinalizeCheckout = async () => {
+    try {
+      // Temporarily grab the store_id from the loaded products to prevent Supabase foreign key errors
+      const storeId = products.length > 0 ? (products[0] as any).store_id : null;
+
+      if (!storeId) {
+        alert("Error: No store_id found. Cannot record sale.");
+        return;
+      }
+
+      const payload = {
+        store_id: storeId,
+        user_id: null, // Replace with actual user ID later when auth is complete
+        subtotal: subtotal,
+        discount: discountAmount,
+        total_price: payableAmount,
+        cart: cart
+      };
+
+      const response = await fetch("http://localhost:5001/api/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to record sale in backend");
+      }
+
+      const result = await response.json();
+      console.log("Sale Success:", result);
+      
+      alert(`Sale Recorded Successfully! Invoice No: ${result.receipt.invoice_no}`);
+      
+      // Clear cart and close modal
+      setCart([]);
+      setIsCheckoutOpen(false);
+      setTenderedAmount("");
+      setDiscountPercent(0);
+
+      // Force page to reload to instantly fetch the new deducted stock numbers!
+      window.location.reload(); 
+
+    } catch (error) {
+      console.error("Checkout Error:", error);
+      alert("Failed to record sale. Check console for details.");
+    }
   };
 
-  // Math Calculations
   const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * item.totalQuantity), 0);
   const currentDiscount = typeof discountPercent === "number" ? discountPercent : 0;
   const discountAmount = subtotal * (currentDiscount / 100); 
   const payableAmount = subtotal - discountAmount;
   const change = typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
 
-  if (isLoading) {
-    return <div className="flex h-screen items-center justify-center bg-slate-50 text-2xl font-bold">Loading POS...</div>;
-  }
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800">
@@ -208,9 +254,13 @@ const POSPage = () => {
                 className="w-full text-sm text-gray-700 focus:outline-none bg-transparent"
                 style={{ fontFamily: 'Work Sans, sans-serif' }}
               />
-              <svg className="w-4 h-4 text-gray-400 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
+              {isLoading ? (
+                <div className="w-4 h-4 rounded-full border-2 border-gray-300 border-t-[#087ca7] animate-spin ml-2 shrink-0"></div>
+              ) : (
+                <svg className="w-4 h-4 text-gray-400 ml-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+              )}
             </div>
           </div>
 
@@ -239,29 +289,37 @@ const POSPage = () => {
 
           {/* Products Grid */}
           <main className="flex-1 overflow-y-auto pb-6 pr-2 custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-            {filteredProducts.length === 0 ? (
+            {!isLoading && products.length === 0 ? (
                <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 font-bold">
-                 <p>No products match your search.</p>
+                 <p>No products found.</p>
                </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-                {filteredProducts.map((product) => (
-                  <button 
-                    key={product.id} 
-                    onClick={() => handleProductClick(product)}
-                    className="bg-white rounded-[15px] shadow-sm border border-gray-100 flex flex-col items-center p-3 hover:shadow-md hover:border-[#087ca7]/30 hover:-translate-y-0.5 transition-all shrink-0 group"
-                  >
-                    <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-100 border border-gray-200 rounded-full mb-2 flex items-center justify-center overflow-hidden shrink-0 group-hover:border-[#087ca7]/50 transition-colors">
-                       <span className="text-gray-400 text-[10px] font-medium">Image</span>
-                    </div>
-                    <h3 className="text-xs md:text-sm font-bold text-gray-800 text-center leading-snug mb-1 line-clamp-2" style={{ fontFamily: 'Raleway, sans-serif' }}>
-                      {product.name}
-                    </h3>
-                    <p className="text-sm md:text-base font-bold text-[#087ca7] mt-auto" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                      P{Number(product.price).toFixed(2)}
-                    </p>
-                  </button>
-                ))}
+                {products.map((product) => {
+                  // NEW: Check if product has any available stock left
+                  const availableTotal = getTotalAvailableStock(product);
+                  const isOutOfStock = availableTotal <= 0;
+
+                  return (
+                    <button 
+                      key={product.id} 
+                      onClick={() => !isOutOfStock && handleProductClick(product)}
+                      disabled={isOutOfStock}
+                      className={`bg-white rounded-[15px] shadow-sm border border-gray-100 flex flex-col items-center p-3 transition-all shrink-0 group 
+                        ${isOutOfStock ? 'opacity-40 cursor-not-allowed grayscale' : 'hover:shadow-md hover:border-[#087ca7]/30 hover:-translate-y-0.5'}`}
+                    >
+                      <div className={`w-16 h-16 lg:w-20 lg:h-20 bg-gray-100 border border-gray-200 rounded-full mb-2 flex items-center justify-center overflow-hidden shrink-0 transition-colors ${!isOutOfStock && 'group-hover:border-[#087ca7]/50'}`}>
+                         <span className="text-gray-400 text-[10px] font-medium">Img</span>
+                      </div>
+                      <h3 className="text-xs md:text-sm font-bold text-gray-800 text-center leading-snug mb-1 line-clamp-2" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                        {product.name}
+                      </h3>
+                      <p className={`text-sm md:text-base font-bold mt-auto ${isOutOfStock ? 'text-red-500' : 'text-[#087ca7]'}`} style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                        {isOutOfStock ? "Out of Stock" : `P${Number(product.price).toFixed(2)}`}
+                      </p>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </main>
@@ -324,12 +382,9 @@ const POSPage = () => {
                 <span className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>Subtotal:</span>
                 <span className="text-base text-black font-semibold" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{subtotal.toFixed(2)}</span>
               </div>
-              
               <div className="flex justify-between items-center">
                 <span className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>Discount:</span>
                 <div className="flex items-center gap-3">
-                  
-                  {/* CUSTOM INPUT FIELD FOR DISCOUNT */}
                   <div className="flex items-center bg-gray-50 hover:bg-white focus-within:bg-white focus-within:ring-1 focus-within:ring-[#033860] border border-gray-300 rounded px-2 py-1 transition-all">
                     <input 
                       type="number"
@@ -346,7 +401,6 @@ const POSPage = () => {
                           setDiscountPercent(val);
                         }
                       }}
-                      // inline css to hide up/down arrows in most browsers
                       className="w-7 text-right text-sm font-bold text-[#73768c] bg-transparent outline-none focus:text-black transition-colors [&::-webkit-inner-spin-button]:appearance-none [appearance:textfield]"
                       style={{ fontFamily: 'Work Sans, sans-serif' }}
                       placeholder="0"
@@ -354,12 +408,11 @@ const POSPage = () => {
                     <span className="text-sm font-bold text-[#73768c] ml-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>%</span>
                   </div>
 
-                  <div className="bg-[#f9f9f9] border border-[#73768c] rounded-lg px-3 py-1 flex items-center min-w-[70px] justify-end">
+                  <div className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>
                     <span className="text-sm text-black font-semibold" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{discountAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
-
               <div className="flex justify-between items-center pt-2 border-t border-gray-300">
                 <span className="text-xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>Payable Amount:</span>
                 <span className="text-2xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>P{payableAmount.toFixed(2)}</span>
@@ -424,38 +477,47 @@ const POSPage = () => {
                       <td colSpan={5} className="py-8 text-gray-400 font-bold">No variations found for this product.</td>
                     </tr>
                   ) : (
-                    selectedProduct.stock.map((stockItem) => (
-                      <tr key={stockItem.id} className="border-b border-gray-100">
-                        <td className="py-4 text-[#223843] text-sm font-medium">{stockItem.barcode || "N/A"}</td>
-                        <td className="py-4 text-[#223843] text-sm font-medium">
-                          {stockItem.restock_date ? new Date(stockItem.restock_date).toLocaleDateString() : "N/A"}
-                        </td>
-                        <td className="py-4 text-[#223843] text-sm font-medium">{stockItem.amount || 0}</td>
-                        <td className="py-4 text-[#223843] text-sm font-medium">
-                           {stockItem.expiry_date ? new Date(stockItem.expiry_date).toLocaleDateString() : "N/A"}
-                        </td>
-                        <td className="py-4">
-                          <div className="flex items-center bg-[#f9f9f9] border border-[#73768c] rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden">
-                            <button 
-                              onClick={() => updateVariationQty(stockItem.id, -1, stockItem.amount)}
-                              className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-[#73768c]"
-                            >
-                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg>
-                            </button>
-                            <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                              {variationQuantities[stockItem.id] || 0}
-                            </span>
-                            <button 
-                              onClick={() => updateVariationQty(stockItem.id, 1, stockItem.amount)}
-                              disabled={(variationQuantities[stockItem.id] || 0) >= stockItem.amount}
-                              className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-[#73768c] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg>
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    selectedProduct.stock.map((stockItem) => {
+                      // NEW: Calculate how many are left after what's in the cart
+                      const qtyInCart = getQtyInCart(selectedProduct.id, stockItem.id);
+                      const availableStock = Math.max(0, stockItem.amount - qtyInCart);
+
+                      return (
+                        <tr key={stockItem.id} className="border-b border-gray-100">
+                          <td className="py-4 text-[#223843] text-sm font-medium">{stockItem.barcode || "N/A"}</td>
+                          <td className="py-4 text-[#223843] text-sm font-medium">
+                            {stockItem.restock_date ? new Date(stockItem.restock_date).toLocaleDateString() : "N/A"}
+                          </td>
+                          <td className={`py-4 text-sm font-bold ${availableStock === 0 ? 'text-red-500' : 'text-[#223843]'}`}>
+                            {availableStock}
+                          </td>
+                          <td className="py-4 text-[#223843] text-sm font-medium">
+                             {stockItem.expiry_date ? new Date(stockItem.expiry_date).toLocaleDateString() : "N/A"}
+                          </td>
+                          <td className="py-4">
+                            <div className={`flex items-center bg-[#f9f9f9] border rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden ${availableStock === 0 ? 'border-gray-300 opacity-50' : 'border-[#73768c]'}`}>
+                              <button 
+                                onClick={() => updateVariationQty(stockItem.id, -1, availableStock)}
+                                disabled={availableStock === 0 || (variationQuantities[stockItem.id] || 0) <= 0}
+                                className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-inherit disabled:cursor-not-allowed"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor"><path d="M2 6h8" strokeWidth="2" strokeLinecap="round"/></svg>
+                              </button>
+                              <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                                {variationQuantities[stockItem.id] || 0}
+                              </span>
+                              <button 
+                                onClick={() => updateVariationQty(stockItem.id, 1, availableStock)}
+                                disabled={(variationQuantities[stockItem.id] || 0) >= availableStock}
+                                className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-inherit disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor"><path d="M6 2v8M2 6h8" strokeWidth="2" strokeLinecap="round"/><path d="M6 2v8" strokeWidth="2" strokeLinecap="round"/></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
 
                 </tbody>
@@ -490,7 +552,7 @@ const POSPage = () => {
       {/* --- CHECKOUT SUMMARY MODAL --- */}
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[25px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.1)] w-full max-w-3xl p-6 md:p-8 relative flex flex-col max-h-[90vh]">
+          <div className="bg-white rounded-[25px] shadow-xl w-full max-w-3xl p-6 md:p-8 relative flex flex-col max-h-[90vh]">
             
             {/* Close Button */}
             <button 
@@ -502,10 +564,9 @@ const POSPage = () => {
               </svg>
             </button>
 
-            {/* Header - Invoice Detail text removed per request */}
             <div className="mb-4 pr-10">
               <h2 className="text-[20px] text-black tracking-wide opacity-0" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 200 }}>
-                {/* Kept div structure for spacing, but removed text */}
+                {/* Spacing structure */}
               </h2>
             </div>
 
@@ -574,7 +635,13 @@ const POSPage = () => {
                     <input 
                       type="number"
                       value={tenderedAmount}
-                      onChange={(e) => setTenderedAmount(e.target.value === "" ? "" : Number(e.target.value))}
+                      onChange={(e) => {
+                        if (e.target.value === "") {
+                          setTenderedAmount("");
+                        } else {
+                          setTenderedAmount(Number(e.target.value));
+                        }
+                      }}
                       className="w-full bg-transparent text-[18px] text-[#223843] ml-1 outline-none font-normal"
                       style={{ fontFamily: 'Work Sans, sans-serif' }}
                       placeholder="0.00"
