@@ -1,31 +1,48 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-// TypeScript Interfaces for our data
-interface Product {
-  id: number;
-  name: string;
-  price: number;
+// Updated Interfaces to match your Supabase Schema
+interface StockItem {
+  id: string;
+  barcode: string;
+  restock_date: string; 
+  amount: number;       
+  expiry_date: string;
 }
 
+interface Product {
+  id: string; 
+  name: string;
+  category: string;
+  price: number;
+  stock: StockItem[]; 
+}
+
+// Updated CartItem to support merging variations of the same product
 interface CartItem {
-  cartId: string;
-  productId: number;
+  productId: string; 
   name: string;
   price: number;
-  quantity: number;
-  variationCode: string;
+  totalQuantity: number;
+  variations: { stockId: string; variationCode: string; quantity: number }[]; 
 }
 
 const POSPage = () => {
   const [activeCategory, setActiveCategory] = useState("All");
+  const [searchQuery, setSearchQuery] = useState(""); 
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   
+  // Real Data States
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
+  
+  // NEW: Discount state allows number or empty string (for when user clears the input)
+  const [discountPercent, setDiscountPercent] = useState<number | "">(0); 
 
   // Variation Modal State
-  const [var1Qty, setVar1Qty] = useState(1);
-  const [var2Qty, setVar2Qty] = useState(0);
+  const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
 
   // Checkout Modal State
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -36,78 +53,140 @@ const POSPage = () => {
     "Household", "Personal Care", "Restricted", "Electronics", "Apparel"
   ];
 
-  const products: Product[] = [
-    { id: 1, name: "C2 Red Medium", price: 35.0 },
-    { id: 2, name: "C2 Green Medium", price: 35.0 },
-    { id: 3, name: "Calbee Honey Butter", price: 50.0 },
-    { id: 4, name: "Calbee Classic Salted", price: 50.0 },
-    { id: 5, name: "Pringles Original", price: 70.0 },
-    { id: 6, name: "Pringles Sour Cream", price: 140.0 },
-    { id: 7, name: "Safeguard White", price: 25.0 },    
-    { id: 8, name: "Safeguard Pink", price: 40.0 },
-  ];
+  // Fetch Data from Backend
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        const response = await fetch("http://localhost:5001/api/inventory");
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
 
-  // Add items from modal to the cart
+        if (Array.isArray(data)) {
+          setProducts(data);
+        } else {
+          console.error("Backend did not return an array:", data);
+        }
+        
+      } catch (error) {
+        console.error("Error fetching inventory:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInventory();
+  }, []);
+
+  // Filter logic for Categories and Search Bar
+  const filteredProducts = products.filter(product => {
+    const matchesCategory = activeCategory === "All" || product.category === activeCategory;
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
+  // Initialize all stock quantities to 0 when a product is clicked
+  const handleProductClick = (product: Product) => {
+    setSelectedProduct(product);
+    const initialQtys: Record<string, number> = {};
+    if (product.stock && product.stock.length > 0) {
+      product.stock.forEach(stockItem => {
+        initialQtys[stockItem.id] = 0;
+      });
+    }
+    setVariationQuantities(initialQtys);
+  };
+
+  const updateVariationQty = (stockId: string, delta: number, maxAmount: number) => {
+    setVariationQuantities(prev => {
+      const currentQty = prev[stockId] || 0;
+      const newQty = Math.max(0, Math.min(currentQty + delta, maxAmount));
+      return { ...prev, [stockId]: newQty };
+    });
+  };
+
+  // Merge products in the cart
   const handleRecordSale = () => {
-    if (!selectedProduct) return;
+    if (!selectedProduct || !selectedProduct.stock) return;
 
-    const newCartItems: CartItem[] = [];
+    let addedTotal = 0;
+    const addedVariations: { stockId: string; variationCode: string; quantity: number }[] = [];
 
-    if (var1Qty > 0) {
-      newCartItems.push({
-        cartId: `${selectedProduct.id}-var1-${Date.now()}`,
-        productId: selectedProduct.id,
-        name: selectedProduct.name,
-        price: selectedProduct.price,
-        quantity: var1Qty,
-        variationCode: "00000001"
-      });
-    }
+    selectedProduct.stock.forEach(stockItem => {
+      const qty = variationQuantities[stockItem.id] || 0;
+      if (qty > 0) {
+        addedTotal += qty;
+        addedVariations.push({ stockId: stockItem.id, variationCode: stockItem.barcode, quantity: qty });
+      }
+    });
 
-    if (var2Qty > 0) {
-      newCartItems.push({
-        cartId: `${selectedProduct.id}-var2-${Date.now()}`,
-        productId: selectedProduct.id,
-        name: selectedProduct.name,
-        price: selectedProduct.price,
-        quantity: var2Qty,
-        variationCode: "00000002"
-      });
-    }
+    if (addedTotal === 0) return;
 
-    if (newCartItems.length > 0) {
-      setCart((prev) => [...prev, ...newCartItems]);
-    }
+    setCart(prevCart => {
+      const existingItemIndex = prevCart.findIndex(item => item.productId === selectedProduct.id);
+      
+      // If product exists in cart, merge the quantities and variations
+      if (existingItemIndex >= 0) {
+        const updatedCart = [...prevCart];
+        const item = updatedCart[existingItemIndex];
+        
+        const mergedVariations = [...item.variations];
+        addedVariations.forEach(addedVar => {
+          const varIndex = mergedVariations.findIndex(v => v.stockId === addedVar.stockId);
+          if (varIndex >= 0) mergedVariations[varIndex].quantity += addedVar.quantity;
+          else mergedVariations.push(addedVar);
+        });
+
+        updatedCart[existingItemIndex] = {
+          ...item,
+          totalQuantity: item.totalQuantity + addedTotal,
+          variations: mergedVariations
+        };
+        return updatedCart;
+      } 
+      // If product doesn't exist, add it as a new row
+      else {
+        return [...prevCart, {
+          productId: selectedProduct.id,
+          name: selectedProduct.name,
+          price: selectedProduct.price,
+          totalQuantity: addedTotal,
+          variations: addedVariations
+        }];
+      }
+    });
 
     setSelectedProduct(null);
-    setVar1Qty(1);
-    setVar2Qty(0);
+    setVariationQuantities({});
   };
 
-  const removeFromCart = (cartIdToRemove: string) => {
-    setCart((prev) => prev.filter(item => item.cartId !== cartIdToRemove));
+  const removeFromCart = (productIdToRemove: string) => {
+    setCart((prev) => prev.filter(item => item.productId !== productIdToRemove));
   };
 
-  // Finalize Checkout
   const handleFinalizeCheckout = () => {
-    alert("Sale Recorded Successfully!");
+    alert("Ready to hit the Sales API with Merged Cart!");
+    console.log("Cart Payload for Backend:", cart);
     setCart([]);
     setIsCheckoutOpen(false);
     setTenderedAmount("");
+    setDiscountPercent(0);
   };
 
   // Math Calculations
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const discountAmount = 0; // Hardcoded 0 for simplicity, but UI shows 12% space
+  const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * item.totalQuantity), 0);
+  const currentDiscount = typeof discountPercent === "number" ? discountPercent : 0;
+  const discountAmount = subtotal * (currentDiscount / 100); 
   const payableAmount = subtotal - discountAmount;
   const change = typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
-  
-  const invoiceNo = "00004654"; 
+
+  if (isLoading) {
+    return <div className="flex h-screen items-center justify-center bg-slate-50 text-2xl font-bold">Loading POS...</div>;
+  }
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800">
       
-      {/* Top Dark Blue Strip */}
       <div className="h-3 md:h-4 w-full bg-[#033860] shadow-sm z-40 shrink-0"></div>
 
       <div className="flex flex-1 overflow-hidden min-w-0 w-full">
@@ -124,6 +203,8 @@ const POSPage = () => {
               <input 
                 type="text" 
                 placeholder="Search for Items..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full text-sm text-gray-700 focus:outline-none bg-transparent"
                 style={{ fontFamily: 'Work Sans, sans-serif' }}
               />
@@ -158,25 +239,31 @@ const POSPage = () => {
 
           {/* Products Grid */}
           <main className="flex-1 overflow-y-auto pb-6 pr-2 custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-              {products.map((product) => (
-                <button 
-                  key={product.id} 
-                  onClick={() => setSelectedProduct(product)}
-                  className="bg-white rounded-[15px] shadow-sm border border-gray-100 flex flex-col items-center p-3 hover:shadow-md hover:border-[#087ca7]/30 hover:-translate-y-0.5 transition-all shrink-0 group"
-                >
-                  <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-100 border border-gray-200 rounded-full mb-2 flex items-center justify-center overflow-hidden shrink-0 group-hover:border-[#087ca7]/50 transition-colors">
-                     <span className="text-gray-400 text-[10px] font-medium">Image</span>
-                  </div>
-                  <h3 className="text-xs md:text-sm font-bold text-gray-800 text-center leading-snug mb-1 line-clamp-2" style={{ fontFamily: 'Raleway, sans-serif' }}>
-                    {product.name}
-                  </h3>
-                  <p className="text-sm md:text-base font-bold text-[#087ca7] mt-auto" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                    P{product.price.toFixed(2)}
-                  </p>
-                </button>
-              ))}
-            </div>
+            {filteredProducts.length === 0 ? (
+               <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 font-bold">
+                 <p>No products match your search.</p>
+               </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+                {filteredProducts.map((product) => (
+                  <button 
+                    key={product.id} 
+                    onClick={() => handleProductClick(product)}
+                    className="bg-white rounded-[15px] shadow-sm border border-gray-100 flex flex-col items-center p-3 hover:shadow-md hover:border-[#087ca7]/30 hover:-translate-y-0.5 transition-all shrink-0 group"
+                  >
+                    <div className="w-16 h-16 lg:w-20 lg:h-20 bg-gray-100 border border-gray-200 rounded-full mb-2 flex items-center justify-center overflow-hidden shrink-0 group-hover:border-[#087ca7]/50 transition-colors">
+                       <span className="text-gray-400 text-[10px] font-medium">Image</span>
+                    </div>
+                    <h3 className="text-xs md:text-sm font-bold text-gray-800 text-center leading-snug mb-1 line-clamp-2" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                      {product.name}
+                    </h3>
+                    <p className="text-sm md:text-base font-bold text-[#087ca7] mt-auto" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                      P{Number(product.price).toFixed(2)}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
           </main>
 
         </div>
@@ -203,25 +290,22 @@ const POSPage = () => {
             ) : (
               <div className="space-y-3 py-4">
                 {cart.map((item) => (
-                  <div key={item.cartId} className="flex items-center justify-between bg-[#e9e9e9] rounded-xl p-3">
+                  <div key={item.productId} className="flex items-center justify-between bg-[#e9e9e9] rounded-xl p-3">
                     <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="#818181" className="shrink-0 hidden md:block">
-                        <path d="M10 6L16 12L10 18" stroke="#818181" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                      <span className="font-bold text-black text-lg md:text-xl w-4 text-center shrink-0" style={{ fontFamily: 'Raleway, sans-serif' }}>
-                        {item.quantity}
+                      <span className="font-bold text-black text-lg md:text-xl w-6 text-center shrink-0" style={{ fontFamily: 'Raleway, sans-serif' }}>
+                        {item.totalQuantity}
                       </span>
                       <div className="flex flex-col ml-1 overflow-hidden">
                         <span className="font-bold text-black text-sm md:text-base leading-tight truncate" style={{ fontFamily: 'Work Sans, sans-serif' }}>
                           {item.name}
                         </span>
                         <span className="text-black text-xs md:text-sm mt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                          P{(item.price * item.quantity).toFixed(2)}
+                          P{(Number(item.price) * item.totalQuantity).toFixed(2)}
                         </span>
                       </div>
                     </div>
                     <button 
-                      onClick={() => removeFromCart(item.cartId)}
+                      onClick={() => removeFromCart(item.productId)}
                       className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full hover:bg-red-100 group transition-colors ml-2"
                     >
                       <svg width="20" height="20" viewBox="0 0 24 24" className="fill-[#fd1d1d] opacity-80 group-hover:opacity-100">
@@ -240,15 +324,42 @@ const POSPage = () => {
                 <span className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>Subtotal:</span>
                 <span className="text-base text-black font-semibold" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{subtotal.toFixed(2)}</span>
               </div>
+              
               <div className="flex justify-between items-center">
                 <span className="text-base text-black font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>Discount:</span>
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-[#73768c] font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>0%</span>
-                  <div className="bg-[#f9f9f9] border border-[#73768c] rounded-lg px-3 py-1 flex items-center">
+                  
+                  {/* CUSTOM INPUT FIELD FOR DISCOUNT */}
+                  <div className="flex items-center bg-gray-50 hover:bg-white focus-within:bg-white focus-within:ring-1 focus-within:ring-[#033860] border border-gray-300 rounded px-2 py-1 transition-all">
+                    <input 
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={discountPercent}
+                      onChange={(e) => {
+                        if (e.target.value === "") {
+                          setDiscountPercent("");
+                        } else {
+                          let val = Number(e.target.value);
+                          if (val > 100) val = 100;
+                          if (val < 0) val = 0;
+                          setDiscountPercent(val);
+                        }
+                      }}
+                      // inline css to hide up/down arrows in most browsers
+                      className="w-7 text-right text-sm font-bold text-[#73768c] bg-transparent outline-none focus:text-black transition-colors [&::-webkit-inner-spin-button]:appearance-none [appearance:textfield]"
+                      style={{ fontFamily: 'Work Sans, sans-serif' }}
+                      placeholder="0"
+                    />
+                    <span className="text-sm font-bold text-[#73768c] ml-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>%</span>
+                  </div>
+
+                  <div className="bg-[#f9f9f9] border border-[#73768c] rounded-lg px-3 py-1 flex items-center min-w-[70px] justify-end">
                     <span className="text-sm text-black font-semibold" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{discountAmount.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
+
               <div className="flex justify-between items-center pt-2 border-t border-gray-300">
                 <span className="text-xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>Payable Amount:</span>
                 <span className="text-2xl font-bold text-black" style={{ fontFamily: 'Raleway, sans-serif' }}>P{payableAmount.toFixed(2)}</span>
@@ -272,17 +383,27 @@ const POSPage = () => {
 
       </div>
 
-      {/* --- 1. WHICH VARIATION MODAL --- */}
+      {/* --- WHICH VARIATION MODAL --- */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl p-6 relative flex flex-col max-h-[85vh]">
-            <button onClick={() => { setSelectedProduct(null); setVar1Qty(1); setVar2Qty(0); }} className="absolute top-5 right-5 text-[#73768c] hover:text-black transition-colors">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6.757 17.24L17 7m-10.243 0L17 17.24" /></svg>
+            
+            <button 
+              onClick={() => {
+                setSelectedProduct(null);
+                setVariationQuantities({});
+              }}
+              className="absolute top-5 right-5 text-[#73768c] hover:text-black transition-colors"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6.757 17.24L17 7m-10.243 0L17 17.24" />
+              </svg>
             </button>
 
             <h2 className="text-2xl font-bold text-black mb-4" style={{ fontFamily: 'Raleway, sans-serif' }}>
               Which variation?
             </h2>
+
             <div className="w-full border-t border-[#bab6b6] mb-2 shrink-0"></div>
 
             <div className="w-full overflow-x-auto overflow-y-auto custom-scrollbar flex-1 min-h-[150px] pr-2">
@@ -297,49 +418,76 @@ const POSPage = () => {
                   </tr>
                 </thead>
                 <tbody style={{ fontFamily: 'Raleway, sans-serif' }}>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-4 text-[#223843] text-sm font-medium">00000001</td>
-                    <td className="py-4 text-[#223843] text-sm font-medium">February 26, 2025</td>
-                    <td className="py-4 text-[#223843] text-sm font-medium">23</td>
-                    <td className="py-4 text-[#223843] text-sm font-medium">May 19, 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center bg-[#f9f9f9] border border-[#73768c] rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden">
-                        <button onClick={() => setVar1Qty(Math.max(0, var1Qty - 1))} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
-                        <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>{var1Qty}</span>
-                        <button onClick={() => setVar1Qty(var1Qty + 1)} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
-                      </div>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-4 text-[#223843] text-sm font-medium">00000002</td>
-                    <td className="py-4 text-[#223843] text-sm font-medium">March 26, 2025</td>
-                    <td className="py-4 text-[#223843] text-sm font-medium">23</td>
-                    <td className="py-4 text-[#223843] text-sm font-medium">July 25, 2025</td>
-                    <td className="py-4">
-                      <div className="flex items-center bg-[#f9f9f9] border border-[#73768c] rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden">
-                        <button onClick={() => setVar2Qty(Math.max(0, var2Qty - 1))} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
-                        <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>{var2Qty}</span>
-                        <button onClick={() => setVar2Qty(var2Qty + 1)} className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-[#73768c]"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg></button>
-                      </div>
-                    </td>
-                  </tr>
+                  
+                  {(!selectedProduct.stock || selectedProduct.stock.length === 0) ? (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-gray-400 font-bold">No variations found for this product.</td>
+                    </tr>
+                  ) : (
+                    selectedProduct.stock.map((stockItem) => (
+                      <tr key={stockItem.id} className="border-b border-gray-100">
+                        <td className="py-4 text-[#223843] text-sm font-medium">{stockItem.barcode || "N/A"}</td>
+                        <td className="py-4 text-[#223843] text-sm font-medium">
+                          {stockItem.restock_date ? new Date(stockItem.restock_date).toLocaleDateString() : "N/A"}
+                        </td>
+                        <td className="py-4 text-[#223843] text-sm font-medium">{stockItem.amount || 0}</td>
+                        <td className="py-4 text-[#223843] text-sm font-medium">
+                           {stockItem.expiry_date ? new Date(stockItem.expiry_date).toLocaleDateString() : "N/A"}
+                        </td>
+                        <td className="py-4">
+                          <div className="flex items-center bg-[#f9f9f9] border border-[#73768c] rounded-lg w-[85px] h-[32px] mx-auto overflow-hidden">
+                            <button 
+                              onClick={() => updateVariationQty(stockItem.id, -1, stockItem.amount)}
+                              className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-r border-[#73768c]"
+                            >
+                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg>
+                            </button>
+                            <span className="flex-1 text-center font-semibold text-sm text-[#242323] pt-0.5" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                              {variationQuantities[stockItem.id] || 0}
+                            </span>
+                            <button 
+                              onClick={() => updateVariationQty(stockItem.id, 1, stockItem.amount)}
+                              disabled={(variationQuantities[stockItem.id] || 0) >= stockItem.amount}
+                              className="w-[26px] h-full flex items-center justify-center hover:bg-gray-200 transition-colors border-l border-[#73768c] disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 6h8" stroke="#73768c" strokeWidth="2" strokeLinecap="round"/></svg>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+
                 </tbody>
               </table>
             </div>
 
             <div className="w-full border-t border-[#bab6b6] mt-4 pt-4 flex justify-end gap-3 shrink-0">
-              <button onClick={() => { setSelectedProduct(null); setVar1Qty(1); setVar2Qty(0); }} className="px-6 py-2 rounded-lg bg-[#b13e3e] hover:bg-red-800 text-[#e9e9e9] text-sm font-bold transition-all shadow-sm active:scale-95" style={{ fontFamily: 'Raleway, sans-serif' }}>
+              <button 
+                onClick={() => {
+                  setSelectedProduct(null);
+                  setVariationQuantities({});
+                }}
+                className="px-6 py-2 rounded-lg bg-[#b13e3e] hover:bg-red-800 text-[#e9e9e9] text-sm font-bold transition-all shadow-sm active:scale-95"
+                style={{ fontFamily: 'Raleway, sans-serif' }}
+              >
                 Cancel Sale
               </button>
-              <button onClick={handleRecordSale} disabled={var1Qty === 0 && var2Qty === 0} className="px-6 py-2 rounded-lg bg-[#033860] hover:bg-blue-900 disabled:bg-gray-400 disabled:cursor-not-allowed text-[#e9e9e9] text-sm font-bold transition-all shadow-sm active:scale-95" style={{ fontFamily: 'Raleway, sans-serif' }}>
+              <button 
+                onClick={handleRecordSale}
+                disabled={!selectedProduct.stock || selectedProduct.stock.length === 0 || Object.values(variationQuantities).every(qty => qty === 0)}
+                className="px-6 py-2 rounded-lg bg-[#033860] hover:bg-blue-900 disabled:bg-gray-400 disabled:cursor-not-allowed text-[#e9e9e9] text-sm font-bold transition-all shadow-sm active:scale-95"
+                style={{ fontFamily: 'Raleway, sans-serif' }}
+              >
                 Record Sale
               </button>
             </div>
+
           </div>
         </div>
       )}
 
-      {/* --- 2. CHECKOUT SUMMARY MODAL --- */}
+      {/* --- CHECKOUT SUMMARY MODAL --- */}
       {isCheckoutOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-[25px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.1)] w-full max-w-3xl p-6 md:p-8 relative flex flex-col max-h-[90vh]">
@@ -354,14 +502,14 @@ const POSPage = () => {
               </svg>
             </button>
 
-            {/* Header */}
-            <div className="mb-4">
-              <h2 className="text-[20px] text-black tracking-wide" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 200 }}>
-                Details for Invoice No. {invoiceNo}
+            {/* Header - Invoice Detail text removed per request */}
+            <div className="mb-4 pr-10">
+              <h2 className="text-[20px] text-black tracking-wide opacity-0" style={{ fontFamily: 'Inter, sans-serif', fontWeight: 200 }}>
+                {/* Kept div structure for spacing, but removed text */}
               </h2>
             </div>
 
-            <div className="w-full border-t-2 border-[#bab6b6] mb-2 shrink-0"></div>
+            <div className="w-full border-t-2 border-[#bab6b6] mb-2 shrink-0 -mt-6"></div>
 
             {/* Cart Items Table */}
             <div className="w-full overflow-x-auto overflow-y-auto custom-scrollbar flex-1 min-h-[150px] mb-4 pr-2">
@@ -376,18 +524,18 @@ const POSPage = () => {
                 </thead>
                 <tbody style={{ fontFamily: 'Raleway, sans-serif' }}>
                   {cart.map((item) => (
-                    <tr key={item.cartId} className="border-b border-[#efeded]">
+                    <tr key={item.productId} className="border-b border-[#efeded]">
                       <td className="py-3 text-left pl-4">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-full border border-[#b4b4b4] bg-[#b4b4b4] shrink-0 flex items-center justify-center overflow-hidden">
                              <span className="text-[10px] text-white">Img</span>
                           </div>
-                          <span className="font-bold text-[#223843] text-[18px]">{item.name}</span>
+                          <span className="font-bold text-[#223843] text-[18px] truncate max-w-[200px]">{item.name}</span>
                         </div>
                       </td>
-                      <td className="py-3 text-[#223843] text-[18px] font-normal">P{item.price.toFixed(2)}</td>
-                      <td className="py-3 text-[#223843] text-[18px] font-normal">{item.quantity}</td>
-                      <td className="py-3 text-[#223843] text-[18px] font-normal text-right pr-4">P{(item.price * item.quantity).toFixed(2)}</td>
+                      <td className="py-3 text-[#223843] text-[18px] font-normal">P{Number(item.price).toFixed(2)}</td>
+                      <td className="py-3 text-[#223843] text-[18px] font-normal">{item.totalQuantity}</td>
+                      <td className="py-3 text-[#223843] text-[18px] font-normal text-right pr-4">P{(Number(item.price) * item.totalQuantity).toFixed(2)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -406,7 +554,9 @@ const POSPage = () => {
                   <span className="text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center">
-                  <span className="w-[150px] md:w-[170px] text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>Discount: <span className="ml-2 text-black">12%</span></span>
+                  <span className="w-[150px] md:w-[170px] text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                    Discount: <span className="ml-2 text-black">{currentDiscount || 0}%</span>
+                  </span>
                   <span className="text-[18px] text-black" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{discountAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex items-center mt-2">
@@ -419,7 +569,7 @@ const POSPage = () => {
               <div className="flex flex-col gap-4 w-full md:w-[310px]">
                 <div className="flex flex-col gap-1">
                   <span className="text-[18px] text-[#bab6b6]" style={{ fontFamily: 'Work Sans, sans-serif' }}>Tendered Amount:</span>
-                  <div className="relative w-full h-[52px] bg-[#f9f9f9] border border-[#73768c] rounded-[10px] flex items-center px-4 overflow-hidden">
+                  <div className="relative w-full h-[52px] bg-[#f9f9f9] border border-[#73768c] rounded-[10px] flex items-center px-4 overflow-hidden focus-within:border-[#033860] focus-within:ring-1 focus-within:ring-[#033860] transition-all">
                     <span className="text-[18px] text-[#223843]" style={{ fontFamily: 'Work Sans, sans-serif' }}>P</span>
                     <input 
                       type="number"
