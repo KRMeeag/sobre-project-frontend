@@ -4,7 +4,6 @@ import { supabase } from "./lib/supabase";
 
 import AuthPage from "./pages/AuthPage";
 import DashboardLayout from "./pages/DashboardLayout";
-import Dashboard from "./pages/Dashboard";
 import POSPage from "./pages/POSPage";
 import InventoryPage from "./pages/InventoryPage";
 import HistoryPage from "./pages/HistoryPage";
