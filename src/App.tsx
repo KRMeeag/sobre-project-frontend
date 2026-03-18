@@ -8,8 +8,8 @@ import POSPage from "./pages/POSPage";
 import InventoryPage from "./pages/InventoryPage";
 import HistoryPage from "./pages/HistoryPage";
 import SalesPage from "./pages/SalesPage";
-import SettingsPage from "./pages/SettingsPage";
-
+import SettingsPage from "./pages/settings/SettingsPage";
+import ProfilePage from "./pages/Profile";
 export default function App() {
   const [user, setUser] = useState<any>(null);
   // 1. Initialize loading to true
@@ -57,6 +57,7 @@ export default function App() {
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/sales" element={<SalesPage />} />
           <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Routes>
     </BrowserRouter>

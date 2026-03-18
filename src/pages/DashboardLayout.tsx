@@ -1,45 +1,37 @@
 import { useState, useEffect } from "react";
 import { Outlet, useNavigate } from "react-router-dom";
 import NavBar from "../components/NavBar";
-import { supabase } from "../lib/supabase"; 
+import { supabase } from "../lib/supabase";
 
 const DashboardLayout = () => {
   const [role, setRole] = useState<string | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null); // New state for photo
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const fetchRole = async () => {
+    const fetchUserContext = async () => {
       try {
-        // 1. Get the current logged-in user
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
-          console.log("No user found, redirecting...");
           navigate("/");
           return;
         }
 
-        console.log("Fetching role for user ID:", user.id);
-
-        // 2. Query the 'users' table specifically for this user
         const { data, error } = await supabase
           .from("users")
-          .select("role")
+          .select("role, photo") // Fetch photo as well
           .eq("auth_user_id", user.id)
           .single();
 
         if (error) {
-          // If there's an error (e.g., RLS policy), log it and default to STAFF (Safe)
-          console.error("Error fetching role:", error.message);
-          setRole("staff"); 
+          console.error("Error fetching user data:", error.message);
+          setRole("staff");
         } else if (data) {
-          // Success! Set the real role
-          console.log("Role found in DB:", data.role);
           setRole(data.role);
+          setPhoto(data.photo); // Save the photo URL
         } else {
-          // No data returned? Default to STAFF
-          console.warn("No profile found. Defaulting to 'staff'.");
           setRole("staff");
         }
 
@@ -51,15 +43,16 @@ const DashboardLayout = () => {
       }
     };
 
-    fetchRole();
+    fetchUserContext();
   }, [navigate]);
 
-  if (loading) return null; 
+  if (loading) return null;
 
   return (
-    <div className="flex h-screen">
-      <NavBar role={role} />
-      <main className="flex-1 bg-[#e9e9e9]"> 
+    <div className="flex h-screen overflow-hidden">
+      {/* Pass the photo down to NavBar */}
+      <NavBar role={role} photo={photo} /> 
+      <main className="flex-1 bg-[#e9e9e9] overflow-y-auto">
         <Outlet />
       </main>
     </div>
