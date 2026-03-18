@@ -35,7 +35,7 @@ export default function OrganizationManagement() {
   
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [currentStoreId, setCurrentStoreId] = useState<string | null>(null);
-
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // <-- Add this
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeletingMode, setIsDeletingMode] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -50,7 +50,7 @@ export default function OrganizationManagement() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
+      setCurrentUserId(user.id);
       const userRes = await axios.get(`${API_URL}/users/${user.id}`);
       const storeId = userRes.data?.store_id;
       setCurrentUserRole(userRes.data?.role || "staff");
@@ -99,7 +99,8 @@ export default function OrganizationManagement() {
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
     try {
-      await axios.post(`${API_URL}/users/org/delete`, { userIds: selectedUserIds });
+      await axios.post(`${API_URL}/users/org/delete`, { userIds: selectedUserIds, admin_user_id: currentUserId, // <-- Add this
+        store_id: currentStoreId });
       setIsDeleteModalOpen(false);
       handleCancelDeleteMode();
       fetchOrganizationUsers();
@@ -134,6 +135,8 @@ export default function OrganizationManagement() {
     try {
       await axios.put(`${API_URL}/users/org/${targetAuthUserId}/role`, {
         role: editingRole.toLowerCase(), // Use state variable 'editingRole'
+        admin_user_id: currentUserId, // <-- Add this
+        store_id: currentStoreId
       });
       
       setUsers(prev => prev.map(u => 

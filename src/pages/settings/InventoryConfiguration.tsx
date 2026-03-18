@@ -17,6 +17,7 @@ export default function InventoryConfiguration() {
     expiration_param: 0,
   });
 
+  const [authUserId, setAuthUserId] = useState<string | null>(null); // <-- Add this0
   const [formData, setFormData] = useState<InventorySettings>({ ...initialData });
   const [storeId, setStoreId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function InventoryConfiguration() {
         }
 
         const authUserId = user.id;
-
+        setAuthUserId(user.id);
         const storeRes = await axios.get(`${API_URL}/store/user/${authUserId}`);
         const store = storeRes.data;
 
@@ -67,6 +68,7 @@ export default function InventoryConfiguration() {
     const payload = {
       low_stock_param: Number(formData.low_stock_param) || 0,
       expiration_param: Number(formData.expiration_param) || 0,
+      auth_user_id: authUserId
     };
 
     try {

@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import axios from "axios";
+import { supabase } from "../lib/supabase";
 import { 
   MagnifyingGlassIcon, 
   CalendarDaysIcon, 
@@ -6,22 +8,28 @@ import {
   ChevronDownIcon
 } from "@heroicons/react/24/outline";
 
-// Dummy data mirroring the exact records in your screenshot
-const AUDIT_LOGS = [
-  { id: 1, date: "January 6, 2025", time: "3:47 PM", user: "User201", area: "Inventory", action: "Updating", record: "C2 Green", summary: "Price: 25.00 -> P35.00" },
-  { id: 2, date: "January 6, 2025", time: "3:30 PM", user: "User201", area: "Sales", action: "Adding", record: "Sales Record", summary: "3 Items Checked Out" },
-  { id: 3, date: "January 6, 2025", time: "3:15 PM", user: "User201", area: "Sales", action: "Deleting", record: "Sales Record", summary: "Sales Voided" },
-  { id: 4, date: "January 6, 2025", time: "3:15 PM", user: "User201", area: "Inventory", action: "Updating", record: "C2 Red Medium", summary: "Stock: 3 -> 30" },
-  { id: 5, date: "January 6, 2025", time: "3:15 PM", user: "User201", area: "Inventory", action: "Updating", record: "C2 Red Medium", summary: "Stock: 3 -> 30" },
-  { id: 6, date: "January 6, 2025", time: "3:30 PM", user: "User201", area: "Sales", action: "Adding", record: "Sales Record", summary: "3 Items Checked Out" },
-  { id: 7, date: "January 6, 2025", time: "3:30 PM", user: "User201", area: "Sales", action: "Adding", record: "Sales Record", summary: "3 Items Checked Out" },
-  { id: 8, date: "January 6, 2025", time: "3:30 PM", user: "User201", area: "Sales", action: "Adding", record: "Sales Record", summary: "3 Items Checked Out" },
-  { id: 9, date: "January 6, 2025", time: "3:30 PM", user: "User201", area: "Sales", action: "Adding", record: "Sales Record", summary: "3 Items Checked Out" },
-  { id: 10, date: "January 6, 2025", time: "3:15 PM", user: "User201", area: "System Settings", action: "Updating", record: "Stock Threshold", summary: "Low Stock: 10 -> 15" },
-  { id: 11, date: "January 6, 2025", time: "3:30 PM", user: "User201", area: "Sales", action: "Adding", record: "Sales Record", summary: "3 Items Checked Out" },
-];
+const API_URL = import.meta.env.VITE_API_URL;
+
+// 1. Define the Interface matching the Supabase query
+interface AuditLog {
+  id: string;
+  date: string;
+  timestamp: string;
+  area: string;
+  action: string;
+  item: string;
+  summary: string;
+  users: {
+    username: string;
+    photo: string;
+  };
+}
 
 export default function HistoryPage() {
+  // 2. Setup States for real data
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -29,6 +37,73 @@ export default function HistoryPage() {
   const [endDate, setEndDate] = useState("");
   const [actionFilter, setActionFilter] = useState("");
   const [areaFilter, setAreaFilter] = useState("");
+
+  // 3. Fetch Data
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        // Get current user's store_id
+        const userRes = await axios.get(`${API_URL}/users/${user.id}`);
+        const storeId = userRes.data?.store_id;
+
+        if (storeId) {
+          // Fetch Audit Logs
+          const logRes = await axios.get(`${API_URL}/audit?store_id=${storeId}`);
+          setLogs(logRes.data);
+        }
+      } catch (err) {
+        console.error("Failed to load audit history:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchHistory();
+  }, []);
+
+  // 4. Formatting Helpers
+  const formatUITime = (sqlTime: string) => {
+    // Expects "HH:MM:SS", outputs "h:MM A"
+    const [hours, minutes] = sqlTime.split(':');
+    let h = parseInt(hours, 10);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${h}:${minutes} ${ampm}`;
+  };
+
+  const formatUIDate = (sqlDate: string) => {
+    // Converts "YYYY-MM-DD" to "Month DD, YYYY"
+    const date = new Date(sqlDate);
+    return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  };
+
+  // 5. Filtering Logic
+  const filteredLogs = useMemo(() => {
+    return logs.filter((log) => {
+      // Search by User Name
+      const matchesSearch = log.users?.username.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Dropdowns
+      const matchesAction = actionFilter ? log.action === actionFilter : true;
+      const matchesArea = areaFilter ? log.area === areaFilter : true;
+      
+      // Dates
+      const matchesStartDate = startDate ? log.date >= startDate : true;
+      const matchesEndDate = endDate ? log.date <= endDate : true;
+      
+      // Times (compare slicing "15:30:00" to "15:30")
+      const timePrefix = log.timestamp.slice(0, 5); 
+      const matchesStartTime = startTime ? timePrefix >= startTime : true;
+      const matchesEndTime = endTime ? timePrefix <= endTime : true;
+
+      return matchesSearch && matchesAction && matchesArea && 
+             matchesStartDate && matchesEndDate && 
+             matchesStartTime && matchesEndTime;
+    });
+  }, [logs, searchQuery, actionFilter, areaFilter, startDate, endDate, startTime, endTime]);
 
   return (
     <div className="flex flex-col min-h-screen bg-[#e9e9e9] font-['Work_Sans']">
@@ -125,6 +200,7 @@ export default function HistoryPage() {
                 <option value="Inventory">Inventory</option>
                 <option value="Sales">Sales</option>
                 <option value="System Settings">System Settings</option>
+                <option value="Profile">Profile</option>
               </select>
               <ChevronDownIcon className="w-4 h-4 absolute right-3 pointer-events-none text-gray-400" />
             </div>
@@ -151,62 +227,73 @@ export default function HistoryPage() {
 
           {/* Table Body */}
           <div className="flex-1 overflow-y-auto bg-white pb-4">
-            {AUDIT_LOGS.map((log) => (
-              <div 
-                key={log.id} 
-                className="grid grid-cols-[160px_140px_180px_160px_140px_200px_1fr_80px] items-center px-8 h-[70px] border-b border-gray-100 hover:bg-gray-50 transition-colors"
-              >
-                {/* Date */}
-                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">
-                  {log.date}
-                </div>
-
-                {/* Time */}
-                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">
-                  {log.time}
-                </div>
-
-                {/* User (Avatar + Bold Name) */}
-                <div className="flex items-center justify-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0">
-                    <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 mt-1">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
+            {loading ? (
+              <div className="p-8 text-center text-gray-500 font-['Work_Sans']">Loading history...</div>
+            ) : filteredLogs.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 font-['Work_Sans']">No audit logs match your filters.</div>
+            ) : (
+              // Map over filteredLogs
+              filteredLogs.map((log) => (
+                <div 
+                  key={log.id} 
+                  className="grid grid-cols-[160px_140px_180px_160px_140px_200px_1fr_80px] items-center px-8 h-17.5 border-b border-gray-100 hover:bg-gray-50 transition-colors"
+                >
+                  {/* Date */}
+                  <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">
+                    {formatUIDate(log.date)}
                   </div>
-                  <span className="text-[16px] font-['Raleway'] font-bold text-[#223843]">
-                    {log.user}
-                  </span>
-                </div>
 
-                {/* Area */}
-                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">
-                  {log.area}
-                </div>
+                  {/* Time */}
+                  <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">
+                    {formatUITime(log.timestamp)}
+                  </div>
 
-                {/* Action Tag */}
-                <div className="flex justify-center items-center">
-                  <ActionTag action={log.action} />
-                </div>
+                  {/* User (Avatar + Bold Name) */}
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden">
+                      {log.users?.photo ? (
+                        <img src={log.users.photo} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 mt-1">
+                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                        </svg>
+                      )}
+                    </div>
+                    <span className="text-[16px] font-['Raleway'] font-bold text-[#223843]">
+                      {log.users?.username || "Unknown"}
+                    </span>
+                  </div>
 
-                {/* Item/Record */}
-                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center truncate px-2">
-                  {log.record}
-                </div>
+                  {/* Area */}
+                  <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">
+                    {log.area}
+                  </div>
 
-                {/* Summary */}
-                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center truncate px-2">
-                  {log.summary}
-                </div>
+                  {/* Action Tag */}
+                  <div className="flex justify-center items-center">
+                    <ActionTag action={log.action} />
+                  </div>
 
-                {/* Info Icon Button */}
-                <div className="flex justify-center items-center">
-                  <button className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#223843] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors focus:outline-none shadow-sm">
-                    i
-                  </button>
-                </div>
+                  {/* Item/Record */}
+                  <div className="text-[15px] font-['Raleway'] text-gray-500 text-center truncate px-2">
+                    {log.item}
+                  </div>
 
-              </div>
-            ))}
+                  {/* Summary */}
+                  <div className="text-[15px] font-['Raleway'] text-gray-500 text-center truncate px-2">
+                    {log.summary}
+                  </div>
+
+                  {/* Grayed Out Info Icon */}
+                  <div className="flex justify-center items-center">
+                    <div className="w-6 h-6 bg-[#ada7a7] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center shadow-sm">
+                      i
+                    </div>
+                  </div>
+
+                </div>
+              ))
+            )}
           </div>
 
         </div>
@@ -226,10 +313,9 @@ interface DynamicFilterInputProps {
   borderRight?: boolean;
 }
 
-// Input component that sticks together perfectly
 function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }: DynamicFilterInputProps) {
   return (
-    <div className={`relative flex items-center w-[150px] px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
+    <div className={`relative flex items-center w-37.5 px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
       <input
         type={type === "date" && !value ? "text" : type === "time" && !value ? "text" : type}
         placeholder={label}
@@ -248,7 +334,6 @@ function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }:
   );
 }
 
-// Action Tags strictly matched to image colors
 function ActionTag({ action }: { action: string }) {
   let styleClasses = "";
 
@@ -267,7 +352,7 @@ function ActionTag({ action }: { action: string }) {
   }
 
   return (
-    <div className={`h-[24px] px-4 flex items-center justify-center rounded-[10px] border ${styleClasses}`}>
+    <div className={`h-6 px-4 flex items-center justify-center rounded-[10px] border ${styleClasses}`}>
       <span className="text-[13px] font-['Work_Sans'] font-medium leading-none whitespace-nowrap">
         {action}
       </span>
