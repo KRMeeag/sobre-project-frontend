@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
+import { supabase } from "../lib/supabase";
 import {
   MagnifyingGlassIcon,
   ArrowUturnLeftIcon,
@@ -9,8 +10,8 @@ import {
   HashtagIcon,
 } from "@heroicons/react/24/outline";
 import { UserCircleIcon } from "@heroicons/react/24/solid";
+import DataTable from "../components/DataTable";
 
-// --- TYPES ---
 interface SaleItem {
   id: string;
   product_name: string;
@@ -38,8 +39,8 @@ export default function SalesPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
 
-  // --- FILTER STATES ---
   const [searchQuery, setSearchQuery] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -49,26 +50,32 @@ export default function SalesPage() {
   const [discountFilter, setDiscountFilter] = useState("");
 
   useEffect(() => {
-    fetchSales();
+    const fetchSalesData = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        setAuthUserId(user.id);
+
+        const userRes = await axios.get(`${API_URL}/users/${user.id}`);
+        const storeId = userRes.data?.store_id;
+
+        if (storeId) {
+          const res = await axios.get(`${API_URL}/sales?store_id=${storeId}`);
+          setReceipts(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load sales", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSalesData();
   }, []);
 
-  const fetchSales = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/sales`);
-      setReceipts(res.data);
-    } catch (err) {
-      console.error("Failed to load sales", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // --- FILTERING LOGIC ---
   const filteredReceipts = useMemo(() => {
     return receipts.filter((r) => {
       const matchesSearch = r.invoice_no.toLowerCase().includes(searchQuery.toLowerCase());
       const receiptDateObj = new Date(r.created_at);
-
       const receiptDate = receiptDateObj.toISOString().split("T")[0];
       const matchesStartDate = startDate ? receiptDate >= startDate : true;
       const matchesEndDate = endDate ? receiptDate <= endDate : true;
@@ -79,19 +86,12 @@ export default function SalesPage() {
 
       const matchesStartTime = startTime ? receiptTime >= startTime : true;
       const matchesEndTime = endTime ? receiptTime <= endTime : true;
-
       const matchesItems = itemsAmount ? r.total_items.toString() === itemsAmount : true;
-      const matchesDiscount = discountFilter ? r.discount.toString() === discountFilter : true;
+      
+      const calculatedPct = r.subtotal > 0 ? Math.round((1 - (r.total_price / r.subtotal)) * 100).toString() : "0";
+      const matchesDiscount = discountFilter ? calculatedPct === discountFilter : true;
 
-      return (
-        matchesSearch &&
-        matchesStartDate &&
-        matchesEndDate &&
-        matchesStartTime &&
-        matchesEndTime &&
-        matchesItems &&
-        matchesDiscount
-      );
+      return matchesSearch && matchesStartDate && matchesEndDate && matchesStartTime && matchesEndTime && matchesItems && matchesDiscount;
     });
   }, [receipts, searchQuery, startDate, endDate, startTime, endTime, itemsAmount, discountFilter]);
 
@@ -99,201 +99,99 @@ export default function SalesPage() {
   const totalItems = filteredReceipts.reduce((sum, r) => sum + r.total_items, 0);
 
   const formatCurrency = (amount: number) => `P${amount.toFixed(2)}`;
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
-  };
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  };
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+
+  const tableGridTemplate = "140px 120px 1fr 160px 140px 120px 140px 140px 80px";
+  const InfoHeaderIcon = <div className="w-6 h-6 bg-[#ada7a7] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center mx-auto shadow-sm">i</div>;
 
   return (
     <div className="flex flex-col min-h-screen bg-[#e9e9e9] font-['Work_Sans'] text-[#223843]">
       <div className="w-full h-13 bg-[#002f5a] shrink-0"></div>
-
-      <div className="p-8 flex-1">
-        <h1 className="text-[28px] font-bold font-['Arvo'] mb-6 text-slate-800">Sales Summary</h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          <SummaryCard title="Total Profit (Filtered)" value={formatCurrency(totalProfit)} />
+      <div className="p-8 flex-1 flex flex-col w-full max-w-375 mx-auto overflow-hidden">
+        
+        <h1 className="text-[28px] font-bold font-['Raleway'] mb-6 text-slate-800">Sales Summary</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
+          <SummaryCard title="This Month's Profit" value={formatCurrency(totalProfit)} />
           <SummaryCard title="Today's Net Profit" value="P5021.16" />
           <SummaryCard title="Today's Cost" value="P2546.78" />
-          <SummaryCard title="Total Items Sold (Filtered)" value={totalItems.toString()} />
+          <SummaryCard title="Total Items Sold" value={totalItems.toString()} />
         </div>
 
-        <h1 className="text-[28px] font-bold font-['Arvo'] mb-4 text-slate-800">Sales History</h1>
+        <h1 className="text-[28px] font-bold font-['Raleway'] text-[#223843] mb-6">Sales History</h1>
 
-        {/* --- FULL WIDTH ALIGNED FILTERS BAR --- */}
-        <div className="flex w-full justify-between items-center gap-3 mb-4">
-          
-          {/* Search Bar - Stretches slightly to fill empty space if needed */}
-          <div className="relative flex-1 max-w-70 bg-white border border-gray-200 rounded-md overflow-hidden">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by invoice number..."
-              className="w-full pl-4 pr-10 py-2.5 text-[13px] outline-none text-gray-600 placeholder-gray-400"
-            />
-            <MagnifyingGlassIcon className="w-4.5 h-4.5 absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 shrink-0">
+          <div className="relative w-85 h-11 bg-white border border-gray-300 rounded-md flex items-center px-4 shadow-sm focus-within:border-[#002f5a] transition-colors">
+            <input type="text" placeholder="Search by invoice number..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-[15px] text-[#223843] placeholder-gray-400" />
+            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 ml-2 shrink-0" strokeWidth={2} />
           </div>
 
-          {/* Time Filters Group */}
-          <div className="flex bg-white border border-gray-200 rounded-md divide-x divide-gray-200 overflow-hidden shrink-0">
-            <DynamicFilterInput
-              type="time"
-              label="Start Time..."
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              icon={<ClockIcon className="w-3.5 h-3.5" />}
-            />
-            <DynamicFilterInput
-              type="time"
-              label="End Time..."
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              icon={<ClockIcon className="w-3.5 h-3.5" />}
-            />
-          </div>
-
-          {/* Date Filters Group */}
-          <div className="flex bg-white border border-gray-200 rounded-md divide-x divide-gray-200 overflow-hidden shrink-0">
-            <DynamicFilterInput
-              type="date"
-              label="Start Date..."
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              icon={<CalendarDaysIcon className="w-3.5 h-3.5" />}
-            />
-            <DynamicFilterInput
-              type="date"
-              label="End Date..."
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              icon={<CalendarDaysIcon className="w-3.5 h-3.5" />}
-            />
-          </div>
-
-          {/* Items Amount Filter */}
-          <div className="relative w-35 bg-white border border-gray-200 rounded-md overflow-hidden flex items-center shrink-0">
-            <input
-              type="number"
-              placeholder="Items Amount"
-              value={itemsAmount}
-              onChange={(e) => setItemsAmount(e.target.value)}
-              className="w-full pl-3 pr-10 py-2.5 text-[13px] outline-none text-gray-600 placeholder-gray-400"
-            />
-            <div className="absolute right-2 flex items-center justify-center w-6 h-6 rounded border border-gray-200 bg-white text-gray-400 pointer-events-none">
-              <HashtagIcon className="w-3 h-3" />
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex bg-white border border-gray-300 rounded-md shadow-sm h-11">
+              <DynamicFilterInput type="time" label="Start Time..." value={startTime} onChange={(e) => setStartTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} borderRight />
+              <DynamicFilterInput type="time" label="End Time..." value={endTime} onChange={(e) => setEndTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} />
             </div>
-            {itemsAmount && (
-              <button onClick={() => setItemsAmount("")} className="absolute right-9 text-gray-300 hover:text-red-400">
-                <XMarkIcon className="w-4 h-4" />
-              </button>
-            )}
-          </div>
 
-          {/* Discount Filter */}
-          <div className="relative w-30 bg-white border border-gray-200 rounded-md overflow-hidden flex items-center shrink-0">
-            <input
-              type="number"
-              placeholder="Discount"
-              value={discountFilter}
-              onChange={(e) => setDiscountFilter(e.target.value)}
-              className="w-full pl-3 pr-10 py-2.5 text-[13px] outline-none text-gray-600 placeholder-gray-400"
-            />
-            <div className="absolute right-2 flex items-center justify-center w-6 h-6 rounded border border-gray-200 bg-white text-gray-400 pointer-events-none font-bold text-[11px]">
-              %
+            <div className="flex bg-white border border-gray-300 rounded-md shadow-sm h-11">
+              <DynamicFilterInput type="date" label="Start Date..." value={startDate} onChange={(e) => setStartDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} borderRight />
+              <DynamicFilterInput type="date" label="End Date..." value={endDate} onChange={(e) => setEndDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} />
             </div>
-            {discountFilter && (
-              <button onClick={() => setDiscountFilter("")} className="absolute right-9 text-gray-300 hover:text-red-400">
-                <XMarkIcon className="w-4 h-4" />
-              </button>
-            )}
-          </div>
 
+            <div className="relative h-11 w-32.5 bg-white border border-gray-300 rounded-md shadow-sm flex items-center">
+              <input type="number" placeholder="Items" value={itemsAmount} onChange={(e) => setItemsAmount(e.target.value)} className="w-full h-full bg-transparent outline-none text-[15px] text-gray-500 pl-4 pr-10" />
+              <HashtagIcon className="w-4 h-4 absolute right-3 pointer-events-none text-gray-400" />
+            </div>
+
+            <div className="relative h-11 w-32.5 bg-white border border-gray-300 rounded-md shadow-sm flex items-center">
+              <input type="number" placeholder="Discount" value={discountFilter} onChange={(e) => setDiscountFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[15px] text-gray-500 pl-4 pr-10" />
+              <span className="absolute right-3 pointer-events-none text-gray-400 font-bold text-[14px]">%</span>
+            </div>
+          </div>
         </div>
 
-        {/* 3. TABLE */}
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-[#f8f9fa] text-[11px] uppercase text-gray-400 font-bold tracking-wider border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-4 font-medium text-center">Date</th>
-                <th className="px-6 py-4 font-medium text-center">Time</th>
-                <th className="px-6 py-4 font-medium">User</th>
-                <th className="px-6 py-4 font-medium text-center">Invoice Number</th>
-                <th className="px-6 py-4 font-medium text-center">Subtotal</th>
-                <th className="px-6 py-4 font-medium text-center">Discount</th>
-                <th className="px-6 py-4 font-medium text-center">Total Price</th>
-                <th className="px-6 py-4 font-medium text-center">Items Amount</th>
-                <th className="px-6 py-4 text-center">
-                  <div className="w-5 h-5 bg-gray-400 text-white rounded-full font-serif italic text-xs flex items-center justify-center mx-auto">
-                    i
+        <DataTable 
+          headers={["Date", "Time", "User", "Invoice Number", "Subtotal", "Discount", "Total Price", "Items Amount", InfoHeaderIcon]}
+          gridTemplate={tableGridTemplate}
+          loading={loading}
+          empty={filteredReceipts.length === 0}
+          emptyMessage="No sales match your search filters."
+        >
+          {filteredReceipts.map((r) => {
+            const discountPercentage = r.subtotal > 0 ? Math.round((1 - (r.total_price / r.subtotal)) * 100) : 0;
+            return (
+              <div key={r.id} className="grid items-center px-8 h-17.5 border-b border-gray-100 hover:bg-gray-50 transition-colors" style={{ gridTemplateColumns: tableGridTemplate }}>
+                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{formatDate(r.created_at)}</div>
+                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{formatTime(r.created_at)}</div>
+                
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden">
+                    {r.users?.photo ? <img src={r.users.photo} alt="avatar" className="w-full h-full object-cover" /> : <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 mt-1"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>}
                   </div>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 text-[13px]">
-              {loading ? (
-                <tr>
-                  <td colSpan={9} className="text-center py-8 text-gray-500">Loading...</td>
-                </tr>
-              ) : filteredReceipts.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="text-center py-8 text-gray-500">No sales match your search.</td>
-                </tr>
-              ) : (
-                filteredReceipts.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-gray-500 text-center">{formatDate(r.created_at)}</td>
-                    <td className="px-6 py-4 text-gray-500 text-center">{formatTime(r.created_at)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        {r.users?.photo ? (
-                          <img src={r.users.photo} className="w-8 h-8 rounded-full" alt="avatar" />
-                        ) : (
-                          <UserCircleIcon className="w-8 h-8 text-gray-300" />
-                        )}
-                        <span className="font-bold text-[#223843]">{r.users?.username || "Unknown"}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500 text-center">{r.invoice_no}</td>
-                    <td className="px-6 py-4 text-gray-500 text-center">{formatCurrency(r.subtotal)}</td>
-                    <td className="px-6 py-4 text-gray-500 text-center">{r.discount}%</td>
-                    <td className="px-6 py-4 text-gray-500 text-center">{formatCurrency(r.total_price)}</td>
-                    <td className="px-6 py-4 text-gray-500 text-center">{r.total_items}</td>
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={() => setSelectedReceiptId(r.id)}
-                        className="text-gray-400 hover:text-gray-700 transition-colors inline-flex justify-center focus:outline-none"
-                      >
-                        <div className="w-5 h-5 bg-gray-600 hover:bg-[#002f5a] text-white rounded-full font-serif italic text-xs flex items-center justify-center transition-colors">
-                          i
-                        </div>
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                  <span className="text-[16px] font-['Raleway'] font-bold text-[#223843]">{r.users?.username || "Unknown"}</span>
+                </div>
 
-        {/* 4. DETAILS MODAL */}
+                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{r.invoice_no}</div>
+                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{formatCurrency(r.subtotal)}</div>
+                {/* FIX: Set the table row discount to strictly show the percentage format */}
+                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{discountPercentage}%</div>
+                <div className="text-[15px] font-['Raleway'] font-bold text-[#223843] text-center">{formatCurrency(r.total_price)}</div>
+                <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{r.total_items}</div>
+                
+                <div className="flex justify-center items-center">
+                  <button onClick={() => setSelectedReceiptId(r.id)} className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#002f5a] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors shadow-sm cursor-pointer focus:outline-none">i</button>
+                </div>
+              </div>
+            );
+          })}
+        </DataTable>
+
         {selectedReceiptId && (
-          <DetailsModal
-            receiptId={selectedReceiptId}
-            onClose={() => setSelectedReceiptId(null)}
-          />
+          <DetailsModal receiptId={selectedReceiptId} authUserId={authUserId} onClose={() => setSelectedReceiptId(null)} />
         )}
       </div>
     </div>
   );
 }
-
-// --- SUB-COMPONENTS ---
 
 function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
@@ -308,59 +206,32 @@ interface DynamicFilterInputProps {
   type: string;
   label: string;
   value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement> | { target: { value: string } }) => void;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   icon: React.ReactNode;
+  borderRight?: boolean;
 }
 
-// Rewritten to match the circular icons
-function DynamicFilterInput({ type, label, value, onChange, icon }: DynamicFilterInputProps) {
+function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }: DynamicFilterInputProps) {
   return (
-    <div className="relative flex items-center w-37.5 bg-white focus-within:bg-gray-50 transition-colors">
+    <div className={`relative flex items-center w-37.5 px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
       <input
         type={type === "date" && !value ? "text" : type === "time" && !value ? "text" : type}
         placeholder={label}
         value={value}
         onChange={onChange}
         onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target.type = type)}
-        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
-          if (!e.target.value) e.target.type = "text";
-        }}
-        className="w-full pl-4 pr-10 py-2.5 bg-transparent outline-none text-[13px] text-gray-600 placeholder-gray-400 cursor-pointer"
+        onBlur={(e: React.FocusEvent<HTMLInputElement>) => { if (!e.target.value) e.target.type = "text"; }}
+        className="w-full bg-transparent outline-none text-[14px] text-gray-500 placeholder-gray-400 cursor-pointer"
       />
-      {value ? (
-        <button
-          onClick={() => onChange({ target: { value: "" } })}
-          className="absolute right-2.5 text-gray-400 hover:text-red-500 bg-white"
-        >
-          <XMarkIcon className="w-4 h-4" />
-        </button>
-      ) : (
-        <div className="absolute right-2.5 flex items-center justify-center w-6 h-6 bg-[#f0f2f5] rounded-full text-gray-400 pointer-events-none">
-          {icon}
-        </div>
-      )}
+      <div className="absolute right-3 flex items-center justify-center text-gray-400 pointer-events-none bg-white pl-1">
+        {icon}
+      </div>
     </div>
   );
 }
 
-// --- MODAL COMPONENT ---
-// (Leave your existing DetailsModal component here exactly as it is)
-
-// --- MODAL COMPONENT ---
-// (Leave the DetailsModal component identical to your current working version)
-// --- MODAL COMPONENT (Unchanged from previous revision) ---
-
-function DetailsModal({
-  receiptId,
-  onClose,
-}: {
-  receiptId: string;
-  onClose: () => void;
-}) {
-  const [data, setData] = useState<{
-    receipt: Receipt;
-    items: SaleItem[];
-  } | null>(null);
+function DetailsModal({ receiptId, authUserId, onClose }: { receiptId: string; authUserId: string | null; onClose: () => void; }) {
+  const [data, setData] = useState<{ receipt: Receipt; items: SaleItem[]; } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -380,32 +251,50 @@ function DetailsModal({
   if (!data && loading) return null;
 
   const handleVoid = async () => {
-    if (confirm("Are you sure you want to void this sale?")) {
-      await axios.delete(`${API_URL}/sales/${receiptId}`);
-      window.location.reload();
+    if (confirm("Are you sure you want to void this entire sale?")) {
+      try {
+        await axios.delete(`${API_URL}/sales/${receiptId}`, {
+          data: { admin_user_id: authUserId }
+        });
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to void sale.");
+      }
     }
   };
+
+  const handleVoidItem = async (itemId: string, productName: string) => {
+    if (confirm(`Are you sure you want to void ${productName}?`)) {
+      try {
+        await axios.delete(`${API_URL}/sales/${receiptId}/item/${itemId}`, {
+          data: { admin_user_id: authUserId }
+        });
+        window.location.reload();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to void item.");
+      }
+    }
+  };
+
+  const subtotal = data?.receipt?.subtotal || 0;
+  const totalPrice = data?.receipt?.total_price || 0;
+  const discountPercentage = subtotal > 0 ? Math.round((1 - (totalPrice / subtotal)) * 100) : 0;
 
   return (
     <div className="fixed inset-0 bg-[#35435a]/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-175 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        {/* Modal Header */}
+        
         <div className="pt-6 px-8 pb-4 flex justify-between items-center">
           <h2 className="text-[15px] font-['Work_Sans'] text-gray-500">
-            Details for Invoice No.{" "}
-            <span className="font-bold text-slate-800">
-              {data?.receipt.invoice_no || "00004654"}
-            </span>
+            Details for Invoice No. <span className="font-bold text-slate-800">{data?.receipt.invoice_no || "..."}</span>
           </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-red-500 transition-colors focus:outline-none"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-red-500 transition-colors focus:outline-none">
             <XMarkIcon className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Modal Body (List) */}
         <div className="px-8 max-h-[50vh] overflow-y-auto">
           {loading ? (
             <p className="text-center py-4 text-gray-500">Loading...</p>
@@ -414,49 +303,32 @@ function DetailsModal({
               <thead className="text-[12px] text-gray-400 font-medium border-b border-gray-100">
                 <tr>
                   <th className="pb-4 pl-12 text-center font-normal">Item</th>
-                  <th className="pb-4 text-center font-normal">
-                    Price
-                    <br />
-                    Individual
-                  </th>
+                  <th className="pb-4 text-center font-normal">Price Individual</th>
                   <th className="pb-4 text-center font-normal">Amount</th>
                   <th className="pb-4 text-center font-normal">Subtotal</th>
-                  <th className="pb-4 w-12 text-center font-normal">
-                    <ArrowUturnLeftIcon className="w-4 h-4 mx-auto" />
-                  </th>
+                  <th className="pb-4 w-12 text-center font-normal"><ArrowUturnLeftIcon className="w-4 h-4 mx-auto" /></th>
                 </tr>
               </thead>
               <tbody className="text-[14px]">
                 {data?.items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-50 last:border-0"
-                  >
+                  <tr key={item.id} className="border-b border-gray-50 last:border-0">
                     <td className="py-4">
                       <div className="flex items-center gap-4">
                         <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
-                          <img
-                            src="/assets/background1.png"
-                            alt="item"
-                            className="w-full h-full object-cover opacity-60"
-                          />
+                          <span className="text-gray-400 text-[10px] font-medium">Img</span>
                         </div>
-                        <span className="font-bold text-slate-800 leading-tight max-w-30">
-                          {item.product_name}
-                        </span>
+                        <span className="font-bold text-slate-800 leading-tight max-w-30">{item.product_name}</span>
                       </div>
                     </td>
-                    <td className="py-4 text-center text-gray-500">
-                      P{item.price_at_sale.toFixed(2)}
-                    </td>
-                    <td className="py-4 text-center text-gray-500">
-                      {item.quantity}
-                    </td>
-                    <td className="py-4 text-center text-gray-500">
-                      P{(item.price_at_sale * item.quantity).toFixed(2)}
-                    </td>
+                    <td className="py-4 text-center text-gray-500">P{Number(item.price_at_sale).toFixed(2)}</td>
+                    <td className="py-4 text-center text-gray-500">{item.quantity}</td>
+                    <td className="py-4 text-center text-gray-500">P{(Number(item.price_at_sale) * item.quantity).toFixed(2)}</td>
                     <td className="py-4 text-right pr-2">
-                      <button className="p-1.5 bg-[#b13e3e] text-white rounded-md hover:bg-red-800 transition-colors shadow-sm inline-flex focus:outline-none">
+                      <button 
+                        onClick={() => handleVoidItem(item.id, item.product_name)} 
+                        title={`Void ${item.product_name}`}
+                        className="p-1.5 bg-[#b13e3e] text-white rounded-md hover:bg-red-800 transition-colors shadow-sm inline-flex focus:outline-none"
+                      >
                         <ArrowUturnLeftIcon className="w-4 h-4" />
                       </button>
                     </td>
@@ -467,35 +339,14 @@ function DetailsModal({
           )}
         </div>
 
-        {/* Modal Footer */}
         <div className="px-8 py-8 flex justify-between items-end">
           <div className="space-y-2 text-[15px]">
-            <div className="flex justify-between w-64">
-              <span className="font-bold text-slate-800">Subtotal:</span>
-              <span className="text-slate-800 font-medium">
-                P{data?.receipt.subtotal.toFixed(2) || "500.00"}
-              </span>
-            </div>
-            <div className="flex justify-between w-64">
-              <span className="font-bold text-slate-800">Discount:</span>
-              <span className="text-slate-800 font-medium">
-                {data?.receipt.discount || "12"}%
-              </span>
-            </div>
-            <div className="flex justify-between w-64 pt-3 text-lg">
-              <span className="font-extrabold text-slate-800">
-                Total Price:
-              </span>
-              <span className="font-extrabold text-slate-800">
-                P{data?.receipt.total_price.toFixed(2) || "440.00"}
-              </span>
-            </div>
+            <div className="flex justify-between w-64"><span className="font-bold text-slate-800">Subtotal:</span><span className="text-slate-800 font-medium">P{subtotal.toFixed(2)}</span></div>
+            <div className="flex justify-between w-64"><span className="font-bold text-slate-800">Discount:</span><span className="text-slate-800 font-medium">{discountPercentage}%</span></div>
+            <div className="flex justify-between w-64 pt-3 text-lg"><span className="font-extrabold text-slate-800">Total Price:</span><span className="font-extrabold text-slate-800">P{totalPrice.toFixed(2)}</span></div>
           </div>
 
-          <button
-            onClick={handleVoid}
-            className="flex items-center gap-2 bg-[#b13e3e] hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-sm active:scale-95 text-[15px] font-['Work_Sans'] focus:outline-none"
-          >
+          <button onClick={handleVoid} className="flex items-center gap-2 bg-[#b13e3e] hover:bg-red-800 text-white font-bold py-3 px-6 rounded-lg transition-all shadow-sm active:scale-95 text-[15px] font-['Work_Sans'] focus:outline-none">
             <ArrowUturnLeftIcon className="w-5 h-5 -scale-x-100" />
             Void Entire Sale
           </button>

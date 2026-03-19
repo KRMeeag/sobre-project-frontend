@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArchiveBoxIcon,
   ArrowLeftEndOnRectangleIcon,
@@ -13,12 +14,15 @@ import { supabase } from "../lib/supabase";
 
 interface NavBarProps {
   role: string | null;
-  photo?: string | null; // Added photo prop
+  photo?: string | null;
 }
 
 const NavBar = ({ role, photo }: NavBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // NEW: State to control the logout confirmation modal
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const allMenuItems = [
     { id: "pos", icon: CurrencyDollarIcon, label: "POS", path: "/pos" },
@@ -49,9 +53,21 @@ const NavBar = ({ role, photo }: NavBarProps) => {
     ? allMenuItems.filter((item) => ["pos", "inventory"].includes(item.id))
     : allMenuItems;
 
-  const handleLogout = async () => {
+  // NEW: Open the modal instead of logging out instantly
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
+
+  // NEW: Execute the actual logout when confirmed
+  const confirmLogout = async () => {
     await supabase.auth.signOut();
+    setIsLogoutModalOpen(false);
     navigate("/");
+  };
+
+  // NEW: Cancel and close the modal
+  const cancelLogout = () => {
+    setIsLogoutModalOpen(false);
   };
 
   return (
@@ -112,14 +128,43 @@ const NavBar = ({ role, photo }: NavBarProps) => {
           )}
         </Link>
 
+        {/* UPDATED: Triggers the modal instead of instant logout */}
         <button
-          onClick={handleLogout}
+          onClick={handleLogoutClick}
           className="flex flex-col items-center text-gray-500 hover:text-red-600 transition-colors pb-4"
         >
           <ArrowLeftEndOnRectangleIcon className="w-7 h-7 mb-1" />
           <span className="text-xs font-medium">Log Out</span>
         </button>
       </div>
+
+      {/* --- NEW: LOGOUT CONFIRMATION MODAL --- */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative flex flex-col items-center text-center">
+            <h2 className="text-lg font-bold text-[#223843] mb-6" style={{ fontFamily: 'Raleway, sans-serif' }}>
+              Are you sure you want to log out?
+            </h2>
+            <div className="flex gap-3 w-full">
+              <button 
+                onClick={cancelLogout}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+                style={{ fontFamily: 'Work Sans, sans-serif' }}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmLogout}
+                className="flex-1 py-2.5 rounded-lg bg-[#cb4a4a] hover:bg-red-800 text-white font-bold transition-colors shadow-sm"
+                style={{ fontFamily: 'Work Sans, sans-serif' }}
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </aside>
   );
 };

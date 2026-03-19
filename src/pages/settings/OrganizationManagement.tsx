@@ -35,7 +35,7 @@ export default function OrganizationManagement() {
   
   const [currentUserRole, setCurrentUserRole] = useState<string>("");
   const [currentStoreId, setCurrentStoreId] = useState<string | null>(null);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null); // <-- Add this
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeletingMode, setIsDeletingMode] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
@@ -43,7 +43,7 @@ export default function OrganizationManagement() {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editingRole, setEditingRole] = useState<string>(""); // This is your state name
+  const [editingRole, setEditingRole] = useState<string>("");
   const [isSavingRole, setIsSavingRole] = useState(false);
 
   const fetchOrganizationUsers = async () => {
@@ -99,8 +99,11 @@ export default function OrganizationManagement() {
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
     try {
-      await axios.post(`${API_URL}/users/org/delete`, { userIds: selectedUserIds, admin_user_id: currentUserId, // <-- Add this
-        store_id: currentStoreId });
+      await axios.post(`${API_URL}/users/org/delete`, { 
+        userIds: selectedUserIds, 
+        admin_user_id: currentUserId,
+        store_id: currentStoreId 
+      });
       setIsDeleteModalOpen(false);
       handleCancelDeleteMode();
       fetchOrganizationUsers();
@@ -111,7 +114,6 @@ export default function OrganizationManagement() {
     }
   };
 
-  // --- EDIT ROLE LOGIC ---
   const handleEditClick = (targetUser: OrgUser) => {
     if (targetUser.role.toLowerCase() === 'main manager' && currentUserRole.toLowerCase() !== 'main manager') {
       alert("You do not have permission to edit the Main Manager's role.");
@@ -121,21 +123,19 @@ export default function OrganizationManagement() {
     setEditingRole(targetUser.role);
   };
 
-  // FIX 1: Added missing cancel function
   const cancelEditing = () => {
     setEditingUserId(null);
     setEditingRole("");
   };
 
-  // FIX 2: Updated variable name to 'editingRole' and forced lowercase for DB check constraints
   const handleSaveRole = async (targetAuthUserId: string) => {
     if (!targetAuthUserId) return;
     
     setIsSavingRole(true);
     try {
       await axios.put(`${API_URL}/users/org/${targetAuthUserId}/role`, {
-        role: editingRole.toLowerCase(), // Use state variable 'editingRole'
-        admin_user_id: currentUserId, // <-- Add this
+        role: editingRole.toLowerCase(),
+        admin_user_id: currentUserId,
         store_id: currentStoreId
       });
       
@@ -215,8 +215,9 @@ export default function OrganizationManagement() {
               <div key={u.auth_user_id} className={`grid ${gridTemplate} items-center px-8 h-20 border-b hover:bg-gray-50 ${selectedUserIds.includes(u.auth_user_id) ? 'bg-red-50' : ''}`} onClick={() => isDeletingMode && handleSelectUser(u.auth_user_id)}>
                 {isDeletingMode && <div className="flex justify-center"><input type="checkbox" checked={selectedUserIds.includes(u.auth_user_id)} readOnly /></div>}
                 <div className="flex items-center gap-4 ml-6">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0 overflow-hidden">
-                    <img src={u.photo || "/assets/background1.png"} className="w-full h-full object-cover opacity-60" />
+                  <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0 overflow-hidden border border-gray-200">
+                    {/* FIX: Removed opacity-60 to make image perfectly clear */}
+                    <img src={u.photo || "/assets/background1.png"} className="w-full h-full object-cover" alt="Profile" />
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-[#223843]">{u.username}</span>
@@ -251,7 +252,15 @@ export default function OrganizationManagement() {
         </div>
       </div>
 
-      <AddUserModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} storeId={currentStoreId} onSuccess={fetchOrganizationUsers} />
+      {/* FIX: Added adminUserId prop to the modal so the backend can trigger the log */}
+      <AddUserModal 
+        isOpen={isAddModalOpen} 
+        onClose={() => setIsAddModalOpen(false)} 
+        storeId={currentStoreId} 
+        adminUserId={currentUserId} 
+        onSuccess={fetchOrganizationUsers} 
+      />
+      
       <DeleteUserModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} users={usersToDelete} onConfirm={handleDeleteConfirm} loading={isDeleting} />
     </div>
   );

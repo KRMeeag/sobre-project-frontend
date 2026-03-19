@@ -103,7 +103,7 @@ export default function InventoryConfiguration() {
         
         {/* Header & Dynamic Save Button */}
         <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
-          <h1 className="text-[32px] font-bold font-['Arvo'] text-[#1e3445]">
+          <h1 className="text-[32px] font-bold font-['Raleway'] text-[#1e3445]">
             Inventory Management
           </h1>
           

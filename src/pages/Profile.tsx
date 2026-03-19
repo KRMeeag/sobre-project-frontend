@@ -145,6 +145,8 @@ export default function ProfilePage() {
 
       // 4. Update local state so the image changes immediately
       setProfileData(prev => ({ ...prev, photo: publicUrl }));
+
+      window.dispatchEvent(new CustomEvent("avatarChanged", { detail: publicUrl }));
       // Fire Audit Log using the state variable
       await axios.post(`${API_URL}/audit`, {
         users_id: authUserId,

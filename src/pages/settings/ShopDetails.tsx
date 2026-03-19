@@ -110,7 +110,7 @@ export default function ShopDetails() {
 
         {/* Header Section */}
         <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
-          <h1 className="text-[32px] font-bold font-['Arvo'] text-slate-800">
+          <h1 className="text-[32px] font-bold font-['Raleway'] text-slate-800">
             Shop Details
           </h1>
           
