@@ -5,6 +5,7 @@ export interface InventoryItem {
   sku: string;
   cost: number;
   price: number;
+  discount: number;
   suggested_order: number;
   supplier: string;
   average_per_day: number;
@@ -16,6 +17,7 @@ export interface InventoryItem {
   nearest_expiry: string;
   is_restock_needed: boolean;
   is_expiry_soon: boolean;
+  created_at: string;
 }
 
 export interface StockItem {
