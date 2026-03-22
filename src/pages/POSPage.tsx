@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 // Updated Interfaces
 interface StockItem {
   id: string;
@@ -53,7 +55,7 @@ const POSPage = () => {
         if (activeCategory !== "All") params.append("category", activeCategory);
         if (searchQuery.trim() !== "") params.append("search", searchQuery.trim());
 
-        const response = await fetch(`http://localhost:5001/api/inventory?${params.toString()}`);
+        const response = await fetch(`${API_URL}/inventory?${params.toString()}`);
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const result = await response.json();
@@ -193,7 +195,7 @@ const POSPage = () => {
         cart: cart
       };
 
-      const response = await fetch("http://localhost:5001/api/sales", {
+      const response = await fetch(`${API_URL}/sales`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)

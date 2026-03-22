@@ -54,7 +54,7 @@ const InventoryPage = () => {
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-2">Inventory</h1>
-              <p className="text-gray-500 text-sm">Manage your products and stock levels.</p>
+              <p className="text-gray-500 text-sm">Manage your products and stock levels</p>
             </div>
             <div className="flex gap-3">
               <button className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm"><PrinterIcon className="w-5 h-5" /> Export to PDF</button>
