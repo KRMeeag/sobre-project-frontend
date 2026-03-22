@@ -320,7 +320,7 @@ const InventoryPage = () => {
               <MagnifyingGlassIcon className="w-5 h-5 absolute right-3 top-3 text-gray-400" />
             </div>
 
-            <div className="flex gap-3 h-[44px]">
+            <div className="flex gap-3 h-11">
               {isDeleteMode ? (
                 <>
                   <button

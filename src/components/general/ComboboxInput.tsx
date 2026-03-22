@@ -49,7 +49,7 @@ export default function ComboboxInput({
       </div>
       
       {isOpen && filteredOptions.length > 0 && (
-        <ul className="absolute z-[100] w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-48 overflow-y-auto custom-scrollbar">
+        <ul className="absolute z-100 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-48 overflow-y-auto custom-scrollbar">
           {filteredOptions.map((opt) => (
             <li 
               key={opt} 

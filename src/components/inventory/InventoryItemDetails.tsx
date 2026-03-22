@@ -7,6 +7,7 @@ import {
 } from "@heroicons/react/24/outline";
 import StockHistory from "./StockHistory";
 import FileUploadDropzone from "../general/FileUploadDropzone";
+import DetailField from "../general/DetailField";
 import type { InventoryItem } from "../../types";
 import axios from "axios";
 
@@ -38,7 +39,6 @@ const InventoryItemDetails = ({
     photo: item.photo || "",
   });
 
-  // Strict Dirty Checking
   useEffect(() => {
     const hasChanges =
       formData.name.trim() !== (item.name || "").trim() ||
@@ -52,13 +52,11 @@ const InventoryItemDetails = ({
     setIsDirty(hasChanges);
   }, [formData, item]);
 
-  // Catch Browser Refresh/Close
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (isDirty) {
         e.preventDefault();
-        e.returnValue =
-          "You have unsaved changes. Are you sure you want to leave?";
+        e.returnValue = "You have unsaved changes.";
       }
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -69,37 +67,30 @@ const InventoryItemDetails = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
-
-    // Regex Validation: Allow letters, numbers, spaces, and safe punctuation
-    if (["name", "category", "supplier"].includes(name)) {
-      const safeRegex = /^[a-zA-Z0-9\s.,'\-&]*$/;
-      if (!safeRegex.test(value)) return;
-    }
-
+    if (
+      ["name", "category", "supplier"].includes(name) &&
+      !/^[a-zA-Z0-9\s.,'\-&]*$/.test(value)
+    )
+      return;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleFileDrop = (file: File | null) => {
-    if (!file) {
-      setPhotoPreview(null);
-      setFormData((prev) => ({ ...prev, photo: "" }));
-      return;
-    }
+    if (!file)
+      return (
+        setPhotoPreview(null),
+        setFormData((prev) => ({ ...prev, photo: "" }))
+      );
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64String = reader.result as string;
-      setPhotoPreview(base64String);
-      setFormData((prev) => ({ ...prev, photo: base64String }));
+      setPhotoPreview(reader.result as string);
+      setFormData((prev) => ({ ...prev, photo: reader.result as string }));
     };
     reader.readAsDataURL(file);
   };
 
   const handleSave = async () => {
-    const confirmSave = window.confirm(
-      "Are you sure you want to save these changes?",
-    );
-    if (!confirmSave) return;
-
+    if (!window.confirm("Are you sure you want to save these changes?")) return;
     try {
       await axios.patch(`${API_URL}/inventory/${item.id}`, formData);
       setIsEditing(false);
@@ -111,12 +102,13 @@ const InventoryItemDetails = ({
   };
 
   const handleCancel = () => {
-    if (isDirty) {
-      const confirmDiscard = window.confirm(
+    if (
+      isDirty &&
+      !window.confirm(
         "You have unsaved changes. Are you sure you want to discard them?",
-      );
-      if (!confirmDiscard) return;
-    }
+      )
+    )
+      return;
     setFormData({
       name: item.name || "",
       sku: item.sku || "",
@@ -141,6 +133,10 @@ const InventoryItemDetails = ({
     });
   };
 
+  const readOnlyClass = isEditing
+    ? "cursor-not-allowed opacity-70"
+    : "text-[#223843]";
+
   return (
     <div className="bg-[#f8f9fa] p-6 border-b border-gray-300 shadow-inner">
       <div className="flex justify-between items-center mb-6">
@@ -159,11 +155,7 @@ const InventoryItemDetails = ({
               <button
                 onClick={handleSave}
                 disabled={!isDirty}
-                className={`px-4 py-1.5 rounded flex items-center gap-2 transition shadow-sm text-sm font-bold ${
-                  isDirty
-                    ? "bg-[#2aa564] text-white hover:bg-[#238f55]"
-                    : "bg-gray-400 text-gray-200 cursor-not-allowed opacity-70"
-                }`}
+                className={`px-4 py-1.5 rounded flex items-center gap-2 transition shadow-sm text-sm font-bold ${isDirty ? "bg-[#2aa564] text-white hover:bg-[#238f55]" : "bg-gray-400 text-gray-200 cursor-not-allowed opacity-70"}`}
               >
                 <CheckCircleIcon className="w-4 h-4" /> Save Changes
               </button>
@@ -178,6 +170,7 @@ const InventoryItemDetails = ({
           )}
         </div>
       </div>
+
       <div className="flex gap-6 mb-8 h-48">
         <div className="w-48 h-48 shrink-0 flex items-center justify-center">
           {isEditing ? (
@@ -208,186 +201,119 @@ const InventoryItemDetails = ({
           )}
         </div>
 
+        {/* REFACTORED 3x4 GRID USING DETAILFIELD COMPONENT */}
         <div className="flex-1 grid grid-cols-4 grid-rows-3 gap-x-4 gap-y-2 h-full content-between">
-          {/* ROW 1 */}
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Display Name
-            </label>
-            {isEditing ? (
-              <input
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-[#223843] focus:outline-none focus:border-[#087CA7] truncate"
-              />
-            ) : (
-              <p className="font-medium text-[#223843] text-sm truncate px-2 py-1 border border-transparent">
-                {formData.name}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              SKU
-            </label>
-            <p
-              className={`font-medium text-[#223843] text-sm font-mono truncate bg-gray-50 px-2 py-1 rounded border border-gray-100 select-none ${isEditing ? "cursor-not-allowed opacity-70" : ""}`}
-            >
-              {item.sku}
-            </p>
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Category
-            </label>
-            {isEditing ? (
-              <input
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-[#223843] focus:outline-none focus:border-[#087CA7] truncate"
-              />
-            ) : (
-              <p className="font-medium text-[#223843] text-sm truncate px-2 py-1 border border-transparent">
-                {formData.category}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Created At
-            </label>
-            <p
-              className={`font-medium text-gray-600 text-sm truncate bg-gray-100/50 px-2 py-1 rounded border border-transparent select-none ${isEditing ? "cursor-not-allowed opacity-70" : ""}`}
-            >
-              {formatDate(item.created_at)}
-            </p>
-          </div>
+          <DetailField
+            label="Display Name"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            isEditing={isEditing}
+            displayValue={formData.name}
+            viewClassName="text-[#223843]"
+          />
+          <DetailField
+            label="SKU"
+            isEditing={isEditing}
+            isReadOnly
+            displayValue={item.sku}
+            viewClassName={`font-mono bg-gray-50 border-gray-100 ${readOnlyClass}`}
+          />
+          <DetailField
+            label="Category"
+            name="category"
+            value={formData.category}
+            onChange={handleChange}
+            isEditing={isEditing}
+            displayValue={formData.category}
+            viewClassName="text-[#223843]"
+          />
+          <DetailField
+            label="Created At"
+            isEditing={isEditing}
+            isReadOnly
+            displayValue={formatDate(item.created_at)}
+            viewClassName={`bg-gray-100/50 text-gray-600 ${readOnlyClass}`}
+          />
 
-          {/* ROW 2 */}
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Supplier Name
-            </label>
-            {isEditing ? (
-              <input
-                name="supplier"
-                value={formData.supplier}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-[#223843] focus:outline-none focus:border-[#087CA7] truncate"
-              />
-            ) : (
-              <p className="font-medium text-[#223843] text-sm truncate px-2 py-1 border border-transparent">
-                {formData.supplier}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Price (₱)
-            </label>
-            {isEditing ? (
-              <input
-                name="price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-[#223843] focus:outline-none focus:border-[#087CA7] truncate"
-              />
-            ) : (
-              <p className="font-medium text-[#223843] text-sm truncate px-2 py-1 border border-transparent">
-                ₱{Number(formData.price).toFixed(2)}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Cost (₱)
-            </label>
-            {isEditing ? (
-              <input
-                name="cost"
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.cost}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-[#223843] focus:outline-none focus:border-[#087CA7] truncate"
-              />
-            ) : (
-              <p className="font-medium text-[#223843] text-sm truncate px-2 py-1 border border-transparent">
-                ₱{Number(formData.cost).toFixed(2)}
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Discount (%)
-            </label>
-            {isEditing ? (
-              <input
-                name="discount"
-                type="number"
-                min="0"
-                max="100"
-                step="1"
-                value={formData.discount}
-                onChange={handleChange}
-                className="w-full border border-gray-300 rounded px-2 py-1 text-sm text-[#223843] focus:outline-none focus:border-[#087CA7] truncate"
-              />
-            ) : (
-              <p className="font-medium text-[#223843] text-sm truncate px-2 py-1 border border-transparent">
-                {formData.discount}%
-              </p>
-            )}
-          </div>
+          <DetailField
+            label="Supplier Name"
+            name="supplier"
+            value={formData.supplier}
+            onChange={handleChange}
+            isEditing={isEditing}
+            displayValue={formData.supplier}
+            viewClassName="text-[#223843]"
+          />
+          <DetailField
+            label="Price (₱)"
+            name="price"
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.price}
+            onChange={handleChange}
+            isEditing={isEditing}
+            displayValue={`₱${Number(formData.price).toFixed(2)}`}
+            viewClassName="text-[#223843]"
+          />
+          <DetailField
+            label="Cost (₱)"
+            name="cost"
+            type="number"
+            min="0"
+            step="0.01"
+            value={formData.cost}
+            onChange={handleChange}
+            isEditing={isEditing}
+            displayValue={`₱${Number(formData.cost).toFixed(2)}`}
+            viewClassName="text-[#223843]"
+          />
+          <DetailField
+            label="Discount (%)"
+            name="discount"
+            type="number"
+            min="0"
+            max="100"
+            step="1"
+            value={formData.discount}
+            onChange={handleChange}
+            isEditing={isEditing}
+            displayValue={`${formData.discount}%`}
+            viewClassName="text-[#223843]"
+          />
 
-          {/* ROW 3 */}
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Avg Per Day
-            </label>
-            <p
-              className={`font-bold text-[#087CA7] text-sm truncate bg-blue-50/50 px-2 py-1 rounded border border-blue-100/50 ${isEditing ? "cursor-not-allowed opacity-70" : ""}`}
-            >
-              {item.average_per_day ?? 0}
-            </p>
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Sales Today
-            </label>
-            <p
-              className={`font-bold text-[#087CA7] text-sm truncate bg-blue-50/50 px-2 py-1 rounded border border-blue-100/50 ${isEditing ? "cursor-not-allowed opacity-70" : ""}`}
-            >
-              {item.sales_today ?? 0}
-            </p>
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Sales Last 7 Days
-            </label>
-            <p
-              className={`font-bold text-[#087CA7] text-sm truncate bg-blue-50/50 px-2 py-1 rounded border border-blue-100/50 ${isEditing ? "cursor-not-allowed opacity-70" : ""}`}
-            >
-              {item.sales_last_7_days ?? 0}
-            </p>
-          </div>
-          <div className="flex flex-col min-w-0 justify-center">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate mb-1 px-1">
-              Suggested Order
-            </label>
-            <p
-              className={`font-bold text-[#9c7e16] text-sm truncate bg-yellow-50/50 px-2 py-1 rounded border border-yellow-100/50 ${isEditing ? "cursor-not-allowed opacity-70" : ""}`}
-            >
-              {item.suggested_order ?? 0}
-            </p>
-          </div>
+          <DetailField
+            label="Avg Per Day"
+            isEditing={isEditing}
+            isReadOnly
+            displayValue={item.average_per_day ?? 0}
+            viewClassName={`font-bold text-[#087CA7] bg-blue-50/50 border-blue-100/50 ${readOnlyClass}`}
+          />
+          <DetailField
+            label="Sales Today"
+            isEditing={isEditing}
+            isReadOnly
+            displayValue={item.sales_today ?? 0}
+            viewClassName={`font-bold text-[#087CA7] bg-blue-50/50 border-blue-100/50 ${readOnlyClass}`}
+          />
+          <DetailField
+            label="Total Stock"
+            isEditing={isEditing}
+            isReadOnly
+            displayValue={item.total_stock}
+            viewClassName={`font-bold ${item.total_stock > 0 ? "text-[#2aa564] bg-green-50/50 border-green-100/50" : "text-[#b13e3e] bg-red-50/50 border-red-100/50"} ${readOnlyClass}`}
+          />
+          <DetailField
+            label="Suggested Order"
+            isEditing={isEditing}
+            isReadOnly
+            displayValue={item.suggested_order ?? 0}
+            viewClassName={`font-bold text-[#9c7e16] bg-yellow-50/50 border-yellow-100/50 ${readOnlyClass}`}
+          />
         </div>
       </div>
+
       <StockHistory
         inventoryId={item.id}
         itemName={item.name}
