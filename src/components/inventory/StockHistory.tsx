@@ -22,7 +22,6 @@ interface StockHistoryProps {
 
 const StockHistory = ({
   inventoryId,
-  itemName,
   onUpdate,
 }: StockHistoryProps) => {
   const [stocks, setStocks] = useState<StockItem[]>([]);

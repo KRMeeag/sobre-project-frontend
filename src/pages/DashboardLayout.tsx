@@ -46,6 +46,21 @@ const DashboardLayout = () => {
     fetchUserContext();
   }, [navigate]);
 
+  // ADD this right below your existing useEffect in DashboardLayout.tsx
+
+  useEffect(() => {
+    // Listen for the custom event emitted by Profile.tsx
+    const handleAvatarUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setPhoto(customEvent.detail); // Instantly update the NavBar's photo state
+    };
+
+    window.addEventListener("avatarChanged", handleAvatarUpdate);
+    
+    // Cleanup the listener when the layout unmounts
+    return () => window.removeEventListener("avatarChanged", handleAvatarUpdate);
+  }, []);
+
   if (loading) return null;
 
   return (

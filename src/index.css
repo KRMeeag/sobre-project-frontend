@@ -10,3 +10,16 @@
 body {
   @apply bg-slate-50; /* Gives a soft background to the whole page */
 }
+
+/* Hide default browser eye icon in password fields */
+input[type="password"]::-ms-reveal,
+input[type="password"]::-ms-clear {
+  display: none;
+}
+
+/* Hide WebKit's default auto-fill icons just in case */
+input[type="password"]::-webkit-credentials-auto-fill-button {
+  visibility: hidden;
+  display: none !important;
+  pointer-events: none;
+}

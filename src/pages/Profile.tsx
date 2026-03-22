@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false); // State for avatar upload
   const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [storeId, setStoreId] = useState<string | null>(null);
   
   // Reference for the hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +65,7 @@ export default function ProfilePage() {
         // 4. Format Address
         let address = "No Address Provided";
         if (storeData) {
+          setStoreId(storeData.id);
           const addressParts = [
             storeData.building,
             storeData.street,
@@ -144,6 +146,16 @@ export default function ProfilePage() {
       // 4. Update local state so the image changes immediately
       setProfileData(prev => ({ ...prev, photo: publicUrl }));
 
+      window.dispatchEvent(new CustomEvent("avatarChanged", { detail: publicUrl }));
+      // Fire Audit Log using the state variable
+      await axios.post(`${API_URL}/audit`, {
+        users_id: authUserId,
+        store_id: storeId, // <-- Fixed
+        area: "Profile",
+        action: "Updating",
+        item: "Profile Info",
+        summary: "Updated the profile picture"
+      });
     } catch (error: any) {
       console.error('Error uploading avatar:', error);
       alert(error.message || 'Error uploading avatar!');
@@ -183,7 +195,16 @@ export default function ProfilePage() {
       
       setEditForm((prev) => ({ ...prev, password: "" }));
       setIsEditing(false);
-      
+      // Check what changed and fire specific logs using the state variable
+      if (editForm.username !== profileData.username) {
+        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated username" }); // <-- Fixed
+      }
+      if (editForm.phone !== profileData.phone) {
+        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated the number" }); // <-- Fixed
+      }
+      if (editForm.password.trim() !== "") {
+        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated password" }); // <-- Fixed
+      }
     } catch (err: any) {
       console.error("Error saving profile:", err);
       alert(err.message || "Failed to save profile changes.");

@@ -17,6 +17,7 @@ export default function ShopDetails() {
   });
 
   // 2. State for the current form inputs
+  const [authUserId, setAuthUserId] = useState<string | null>(null); // <-- Add this
   const [formData, setFormData] = useState({ ...initialData });
   const [storeId, setStoreId] = useState<string | null>(null); // Track the store's primary key
   const [loading, setLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function ShopDetails() {
           setLoading(false);
           return;
         }
-
+        setAuthUserId(user.id); 
         // Fetch the store data using the new backend endpoint
         const res = await axios.get(`${API_URL}/store/user/${user.id}`);
         const store = res.data; 
@@ -79,7 +80,10 @@ export default function ShopDetails() {
     
     try {
       // Update the specific store directly using its ID
-      await axios.put(`${API_URL}/store/${storeId}`, formData);
+      await axios.put(`${API_URL}/store/${storeId}`, {
+        ...formData,
+        auth_user_id: authUserId 
+      });
       
       // Update the initial data to match the newly saved data (grays out the button again)
       setInitialData(formData);
@@ -106,7 +110,7 @@ export default function ShopDetails() {
 
         {/* Header Section */}
         <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
-          <h1 className="text-[32px] font-bold font-['Arvo'] text-slate-800">
+          <h1 className="text-[32px] font-bold font-['Raleway'] text-slate-800">
             Shop Details
           </h1>
           

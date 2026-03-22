@@ -12,7 +12,6 @@ export default function AuthForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Unified Form State
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -28,9 +27,24 @@ export default function AuthForm() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // FIX: Reset everything (Steps, Errors, Passwords, and Form Data) when switching modes
   useEffect(() => {
     setStep(1);
     setErrors({});
+    setShowPassword(false);
+    setShowConfirmPassword(false);
+    setFormData({
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      storeName: "",
+      building: "",
+      street: "",
+      barangay: "",
+      city: "",
+      province: "",
+    });
   }, [isSignUp]);
 
   const validateStep1 = () => {
@@ -109,7 +123,6 @@ export default function AuthForm() {
     <div className="w-full lg:w-[30%] bg-white flex flex-col items-center justify-center p-6 border-l border-gray-100 min-h-screen">
       <div className="w-full max-w-90 flex flex-col">
         
-        {/* --- BRANDING HEADER (Exact Match to Old AuthForm) --- */}
         <div className="text-center mb-4">
           <img src="/assets/background1.png" className="w-10 h-10 mx-auto mb-4" alt="Sobre Icon" />
           
@@ -130,9 +143,8 @@ export default function AuthForm() {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           
-          {/* --- LOGIN VIEW (Exact Match) --- */}
           {!isSignUp && (
-            <>
+            <div className="animate-in fade-in duration-300 space-y-3">
               <InputField 
                 label="Email" type="email" placeholder="user@email.com" required
                 value={formData.email} 
@@ -146,10 +158,9 @@ export default function AuthForm() {
                 onToggle={() => setShowPassword(!showPassword)}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, password: e.target.value})} 
               />
-            </>
+            </div>
           )}
 
-          {/* --- SIGNUP STEP 1 --- */}
           {isSignUp && step === 1 && (
             <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-300">
               <InputField 
@@ -182,7 +193,6 @@ export default function AuthForm() {
             </div>
           )}
 
-          {/* --- SIGNUP STEP 2 --- */}
           {isSignUp && step === 2 && (
             <div className="space-y-3 animate-in fade-in slide-in-from-right-4 duration-300">
               <InputField 
@@ -209,7 +219,6 @@ export default function AuthForm() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, barangay: e.target.value})} 
               />
 
-              {/* Province Dropdown (Styled like InputField) */}
               <div className="flex flex-col">
                 <label className="text-[11px] font-bold text-gray-500 font-['Work_Sans'] ml-1 mb-1 uppercase tracking-tighter">Province *</label>
                 <select 
@@ -223,7 +232,6 @@ export default function AuthForm() {
                 {errors.province && <span className="text-red-500 text-[10px] ml-1">{errors.province}</span>}
               </div>
 
-              {/* City Dropdown (Styled like InputField) */}
               <div className="flex flex-col">
                 <label className="text-[11px] font-bold text-gray-500 font-['Work_Sans'] ml-1 mb-1 uppercase tracking-tighter">City / Municipality *</label>
                 <select 
@@ -240,7 +248,6 @@ export default function AuthForm() {
             </div>
           )}
 
-          {/* --- ACTION BUTTONS (Exact Match Logic) --- */}
           <div className="pt-2 space-y-3">
             {!isSignUp ? (
               <Button text={loading ? "..." : "Login to Sobre"} disabled={loading} />
@@ -262,7 +269,6 @@ export default function AuthForm() {
 
         </form>
 
-        {/* --- FOOTER (Exact Match) --- */}
         <div className="mt-4 text-center pt-4 border-t border-gray-100">
           <p className="text-[11px] text-gray-500 mb-4 font-['Work_Sans']">
             {isSignUp ? "Already have an account? Login below!" : "Don't have an account? Click the button below!"}
@@ -276,7 +282,6 @@ export default function AuthForm() {
           </button>
         </div>
         
-        {/* Progress Dots (Only for Signup) - Kept Minimal */}
         {isSignUp && (
           <div className="flex justify-center gap-2 mt-4">
             <div className={`w-2 h-2 rounded-full transition-all ${step === 1 ? 'bg-[#004385] w-4' : 'bg-gray-300'}`} />
@@ -288,7 +293,7 @@ export default function AuthForm() {
   );
 }
 
-// --- HELPER COMPONENTS (STYLED EXACTLY LIKE OLD FORM) ---
+// --- HELPER COMPONENTS ---
 
 interface InputFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
@@ -320,7 +325,7 @@ const PasswordField = ({ label, show, onToggle, error, ...props }: PasswordField
     </label>
     <input 
       type={show ? "text" : "password"} 
-      className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none pr-10 ${error ? 'border-red-500' : 'border-gray-300'}`}
+      className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${error ? 'border-red-500' : 'border-gray-300'}`}
       {...props} 
     />
     <button type="button" onClick={onToggle} className="absolute right-3 bottom-2.75 text-gray-400 hover:text-[#087CA7]">
