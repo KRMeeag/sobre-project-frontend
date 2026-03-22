@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { PencilSquareIcon, PhotoIcon } from "@heroicons/react/24/outline";
 import StockHistory from "./StockHistory";
-import type { InventoryItem } from "../types";
+import type { InventoryItem } from "../../types";
 
 const InventoryItemDetails = ({ item }: { item: InventoryItem }) => {
   const [isEditing, setIsEditing] = useState(false);

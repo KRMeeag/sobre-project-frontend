@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { InventoryItem } from "../types";
+import type { InventoryItem } from "../../types";
 import {
   ArrowDownCircleIcon,
   ChevronUpIcon,
