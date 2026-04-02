@@ -5,7 +5,7 @@ import { supabase } from "../lib/supabase";
 
 const DashboardLayout = () => {
   const [role, setRole] = useState<string | null>(null);
-  const [photo, setPhoto] = useState<string | null>(null); // New state for photo
+  const [photo, setPhoto] = useState<string | null>(null); 
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -21,7 +21,7 @@ const DashboardLayout = () => {
 
         const { data, error } = await supabase
           .from("users")
-          .select("role, photo") // Fetch photo as well
+          .select("role, photo") 
           .eq("auth_user_id", user.id)
           .single();
 
@@ -30,7 +30,7 @@ const DashboardLayout = () => {
           setRole("staff");
         } else if (data) {
           setRole(data.role);
-          setPhoto(data.photo); // Save the photo URL
+          setPhoto(data.photo); 
         } else {
           setRole("staff");
         }
@@ -46,18 +46,13 @@ const DashboardLayout = () => {
     fetchUserContext();
   }, [navigate]);
 
-  // ADD this right below your existing useEffect in DashboardLayout.tsx
-
   useEffect(() => {
-    // Listen for the custom event emitted by Profile.tsx
     const handleAvatarUpdate = (e: Event) => {
       const customEvent = e as CustomEvent;
-      setPhoto(customEvent.detail); // Instantly update the NavBar's photo state
+      setPhoto(customEvent.detail); 
     };
 
     window.addEventListener("avatarChanged", handleAvatarUpdate);
-    
-    // Cleanup the listener when the layout unmounts
     return () => window.removeEventListener("avatarChanged", handleAvatarUpdate);
   }, []);
 
@@ -65,9 +60,9 @@ const DashboardLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Pass the photo down to NavBar */}
       <NavBar role={role} photo={photo} /> 
-      <main className="flex-1 bg-[#e9e9e9] overflow-y-auto">
+      {/* Updated background and overflow to match InventoryPage structure */}
+      <main className="flex-1 bg-[#f3f4f6] overflow-hidden">
         <Outlet />
       </main>
     </div>
