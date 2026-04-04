@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import type { CartItem } from "../pages/POSPage";
 
 interface CheckoutModalProps {
@@ -12,7 +11,7 @@ interface CheckoutModalProps {
   setTenderedAmount: (val: number | "") => void;
   change: number;
   onFinalizeCheckout: () => void;
-  isSubmitting: boolean; // NEW: Prevents duplicate submissions
+  isSubmitting: boolean; 
 }
 
 export default function CheckoutModal({
@@ -28,14 +27,7 @@ export default function CheckoutModal({
   onFinalizeCheckout,
   isSubmitting
 }: CheckoutModalProps) {
-  const [invoiceNo, setInvoiceNo] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-      setInvoiceNo(Math.floor(10000000 + Math.random() * 90000000).toString());
-    }
-  }, [isOpen]);
-
+  
   if (!isOpen) return null;
 
   const discountAmount = subtotal * (currentDiscount / 100);
@@ -46,12 +38,12 @@ export default function CheckoutModal({
         
         <div className="flex justify-between items-center pb-4">
           <h2 className="text-[18px] text-[#73768c] font-normal" style={{ fontFamily: 'Raleway, sans-serif' }}>
-            Details for Invoice No. {invoiceNo}
+            New Transaction Details
           </h2>
           <button 
             onClick={() => { onClose(); setTenderedAmount(""); }}
             className="text-gray-400 hover:text-black transition-colors focus:outline-none"
-            disabled={isSubmitting} // Lock close button while loading
+            disabled={isSubmitting} 
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 18L18 6M6 6l12 12" />
@@ -165,7 +157,6 @@ export default function CheckoutModal({
                 className="flex-1 h-[45px] rounded-[6px] text-white disabled:opacity-50 disabled:cursor-not-allowed text-[14px] font-bold transition-all shadow-sm active:scale-95 focus:outline-none flex items-center justify-center"
                 style={{ 
                   fontFamily: 'Raleway, sans-serif',
-                  // FIX: Changes to Blue (#033860) when sufficient amount is tendered!
                   backgroundColor: (typeof tenderedAmount === "number" && tenderedAmount >= payableAmount && !isSubmitting) ? "#033860" : "#8c949e"
                 }}
               >
