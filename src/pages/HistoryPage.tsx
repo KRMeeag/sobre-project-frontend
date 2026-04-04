@@ -73,7 +73,7 @@ export default function HistoryPage() {
 
   const formatUIDate = (sqlDate: string) => {
     const date = new Date(sqlDate);
-    return date.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
   const filteredLogs = useMemo(() => {
@@ -111,25 +111,31 @@ export default function HistoryPage() {
           <p className="text-gray-500 text-sm">Track user actions and system changes</p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 shrink-0">
-          <div className="relative w-85 h-11 bg-white border border-gray-300 rounded-md flex items-center px-4 shadow-sm focus-within:border-[#002f5a] transition-colors">
-            <input type="text" placeholder="Search by user..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-[15px] text-[#223843] placeholder-gray-400" />
-            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 ml-2 shrink-0" strokeWidth={2} />
+        {/* --- RESTRUCTURED FILTER SECTION --- */}
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0 w-full">
+          
+          {/* LEFT GROUP: Search, Time, and Date grouped together */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-full sm:w-64 h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+              <input type="text" placeholder="Search by user..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-[14px] text-gray-700 placeholder-gray-400" />
+              <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 ml-2 shrink-0" strokeWidth={2} />
+            </div>
+
+            <div className="flex bg-white border border-gray-300 rounded-lg shadow-sm h-11 focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+              <DynamicFilterInput type="time" label="Start Time" value={startTime} onChange={(e) => setStartTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} borderRight />
+              <DynamicFilterInput type="time" label="End Time" value={endTime} onChange={(e) => setEndTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} />
+            </div>
+
+            <div className="flex bg-white border border-gray-300 rounded-lg shadow-sm h-11 focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+              <DynamicFilterInput type="date" label="Start Date" value={startDate} onChange={(e) => setStartDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} borderRight />
+              <DynamicFilterInput type="date" label="End Date" value={endDate} onChange={(e) => setEndDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} />
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="flex bg-white border border-gray-300 rounded-md shadow-sm h-11">
-              <DynamicFilterInput type="time" label="Start Time..." value={startTime} onChange={(e) => setStartTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} borderRight />
-              <DynamicFilterInput type="time" label="End Time..." value={endTime} onChange={(e) => setEndTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} />
-            </div>
-
-            <div className="flex bg-white border border-gray-300 rounded-md shadow-sm h-11">
-              <DynamicFilterInput type="date" label="Start Date..." value={startDate} onChange={(e) => setStartDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} borderRight />
-              <DynamicFilterInput type="date" label="End Date..." value={endDate} onChange={(e) => setEndDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} />
-            </div>
-
-            <div className="relative h-11 bg-white border border-gray-300 rounded-md shadow-sm flex items-center min-w-32.5">
-              <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[15px] text-gray-500 pl-4 pr-10 appearance-none cursor-pointer">
+          {/* RIGHT GROUP: Action and Area */}
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative h-11 w-full sm:w-40 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+              <select value={actionFilter} onChange={(e) => setActionFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10 appearance-none cursor-pointer">
                 <option value="">Action</option>
                 <option value="Adding">Adding</option>
                 <option value="Updating">Updating</option>
@@ -138,8 +144,8 @@ export default function HistoryPage() {
               <ChevronDownIcon className="w-4 h-4 absolute right-3 pointer-events-none text-gray-400" />
             </div>
 
-            <div className="relative h-11 bg-white border border-gray-300 rounded-md shadow-sm flex items-center min-w-32.5">
-              <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[15px] text-gray-500 pl-4 pr-10 appearance-none cursor-pointer">
+            <div className="relative h-11 w-full sm:w-40 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+              <select value={areaFilter} onChange={(e) => setAreaFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10 appearance-none cursor-pointer">
                 <option value="">Area</option>
                 <option value="Inventory">Inventory</option>
                 <option value="Sales">Sales</option>
@@ -149,10 +155,20 @@ export default function HistoryPage() {
               <ChevronDownIcon className="w-4 h-4 absolute right-3 pointer-events-none text-gray-400" />
             </div>
           </div>
+
         </div>
 
         <DataTable 
-          headers={["Date", "Time", "User", "Area", "Action", "Item/Record", "Summary", InfoHeaderIcon]}
+          headers={[
+            "Date", 
+            "Time", 
+            "User", 
+            "Area", 
+            "Action", 
+            <span className="whitespace-nowrap px-2 block">Item/Record</span>, // Fixed overlap
+            <span className="whitespace-nowrap px-2 block">Summary</span>,       // Fixed overlap
+            InfoHeaderIcon
+          ]}
           loading={loading}
           empty={filteredLogs.length === 0}
           emptyMessage="No audit logs match your filters."
@@ -162,8 +178,8 @@ export default function HistoryPage() {
               key={log.id} 
               className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfc]"}`}
             >
-              <td className="p-4 text-center text-gray-500">{formatUIDate(log.date)}</td>
-              <td className="p-4 text-center text-gray-500">{formatUITime(log.timestamp)}</td>
+              <td className="p-4 text-center text-gray-500 whitespace-nowrap">{formatUIDate(log.date)}</td>
+              <td className="p-4 text-center text-gray-500 whitespace-nowrap">{formatUITime(log.timestamp)}</td>
 
               <td className="p-4">
                 <div className="flex items-center justify-center gap-3">
@@ -176,13 +192,13 @@ export default function HistoryPage() {
                       </svg>
                     )}
                   </div>
-                  <span className="font-bold text-[#223843]">
+                  <span className="font-bold text-[#223843] whitespace-nowrap">
                     {log.users?.username || "Unknown"}
                   </span>
                 </div>
               </td>
 
-              <td className="p-4 text-center text-gray-500">{log.area}</td>
+              <td className="p-4 text-center text-gray-500 whitespace-nowrap">{log.area}</td>
               
               <td className="p-4">
                 <div className="flex justify-center items-center">
@@ -190,15 +206,15 @@ export default function HistoryPage() {
                 </div>
               </td>
 
-              <td className="p-4 text-center text-gray-500 truncate max-w-[200px]">{log.item}</td>
-              <td className="p-4 text-center text-gray-500 truncate max-w-[250px]">{log.summary}</td>
+              <td className="p-4 text-center text-gray-500 truncate max-w-30 sm:max-w-45" title={log.item}>{log.item}</td>
+              <td className="p-4 text-center text-gray-500 truncate max-w-37.5 sm:max-w-50" title={log.summary}>{log.summary}</td>
 
               <td className="p-4">
                 <div className="flex justify-center items-center">
                   {log.receipt_id ? (
                     <button 
                       onClick={() => setSelectedReceiptId(log.receipt_id)}
-                      className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#223843] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors focus:outline-none shadow-sm cursor-pointer"
+                      className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#002f5a] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors focus:outline-none shadow-sm cursor-pointer"
                       title="View Invoice"
                     >
                       i
@@ -235,15 +251,15 @@ interface DynamicFilterInputProps {
 
 function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }: DynamicFilterInputProps) {
   return (
-    <div className={`relative flex items-center w-37.5 px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
+    <div className={`relative flex items-center w-32 sm:w-36 px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
       <input
         type={type === "date" && !value ? "text" : type === "time" && !value ? "text" : type}
         placeholder={label}
         value={value}
         onChange={onChange}
-        onFocus={(e) => (e.target.type = type)}
-        onBlur={(e) => { if (!e.target.value) e.target.type = "text"; }}
-        className="w-full bg-transparent outline-none text-[14px] text-gray-500 placeholder-gray-400 cursor-pointer"
+        onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target.type = type)}
+        onBlur={(e: React.FocusEvent<HTMLInputElement>) => { if (!e.target.value) e.target.type = "text"; }}
+        className="w-full bg-transparent outline-none text-[13px] text-gray-700 placeholder-gray-400 cursor-pointer"
       />
       <div className="absolute right-3 flex items-center justify-center text-gray-400 pointer-events-none bg-white pl-1">
         {icon}

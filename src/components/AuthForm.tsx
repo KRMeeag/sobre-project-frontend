@@ -27,7 +27,6 @@ export default function AuthForm() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // FIX: Reset everything (Steps, Errors, Passwords, and Form Data) when switching modes
   useEffect(() => {
     setStep(1);
     setErrors({});
@@ -219,32 +218,26 @@ export default function AuthForm() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, barangay: e.target.value})} 
               />
 
-              <div className="flex flex-col">
-                <label className="text-[11px] font-bold text-gray-500 font-['Work_Sans'] ml-1 mb-1 uppercase tracking-tighter">Province *</label>
-                <select 
-                  className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none bg-white ${errors.province ? 'border-red-500' : 'border-gray-300'}`}
-                  value={formData.province}
-                  onChange={(e) => setFormData({...formData, province: e.target.value, city: ""})}
-                >
-                  <option value="">Select Province</option>
-                  {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
-                {errors.province && <span className="text-red-500 text-[10px] ml-1">{errors.province}</span>}
-              </div>
+              <SelectField 
+                label="Province" 
+                required 
+                error={errors.province}
+                value={formData.province}
+                onChange={(e) => setFormData({...formData, province: e.target.value, city: ""})}
+                options={PROVINCES}
+                defaultOption="Select Province"
+              />
 
-              <div className="flex flex-col">
-                <label className="text-[11px] font-bold text-gray-500 font-['Work_Sans'] ml-1 mb-1 uppercase tracking-tighter">City / Municipality *</label>
-                <select 
-                  className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none bg-white ${errors.city ? 'border-red-500' : 'border-gray-300'}`}
-                  value={formData.city}
-                  onChange={(e) => setFormData({...formData, city: e.target.value})}
-                  disabled={!formData.province}
-                >
-                  <option value="">{formData.province ? "Select City" : "Select Province First"}</option>
-                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                {errors.city && <span className="text-red-500 text-[10px] ml-1">{errors.city}</span>}
-              </div>
+              <SelectField 
+                label="City / Municipality" 
+                required 
+                error={errors.city}
+                value={formData.city}
+                onChange={(e) => setFormData({...formData, city: e.target.value})}
+                options={cities}
+                defaultOption={formData.province ? "Select City" : "Select Province First"}
+                disabled={!formData.province}
+              />
             </div>
           )}
 
@@ -258,7 +251,7 @@ export default function AuthForm() {
                 <button 
                   type="button" 
                   onClick={() => setStep(1)} 
-                  className="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-lg text-sm transition-all font-['Work_Sans']"
+                  className="w-1/3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 rounded-lg text-sm transition-all font-['Work_Sans'] focus:outline-none"
                 >
                   Back
                 </button>
@@ -276,7 +269,7 @@ export default function AuthForm() {
           <button 
             type="button"
             onClick={() => setIsSignUp(!isSignUp)} 
-            className="w-full bg-[#087CA7] hover:bg-[#004385] text-white font-bold py-2 rounded-lg transition-all text-sm font-['Work_Sans']"
+            className="w-full bg-[#087CA7] hover:bg-[#004385] text-white font-bold py-2 rounded-lg transition-all text-sm font-['Work_Sans'] focus:outline-none"
           >
             {isSignUp ? "Login to Sobre" : "Create a manager's account"}
           </button>
@@ -319,22 +312,51 @@ interface PasswordFieldProps extends InputFieldProps {
 }
 
 const PasswordField = ({ label, show, onToggle, error, ...props }: PasswordFieldProps) => (
-  <div className="flex flex-col relative">
+  <div className="flex flex-col">
     <label className="text-[11px] font-bold text-gray-500 font-['Work_Sans'] ml-1 mb-1 uppercase tracking-tighter">
       {label} *
     </label>
-    <input 
-      type={show ? "text" : "password"} 
-      className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden ${error ? 'border-red-500' : 'border-gray-300'}`}
-      {...props} 
-    />
-    <button type="button" onClick={onToggle} className="absolute right-3 bottom-2.75 text-gray-400 hover:text-[#087CA7]">
-      {show ? (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
-      ) : (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-      )}
-    </button>
+    <div className="relative w-full">
+      <input 
+        type={show ? "text" : "password"} 
+        className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none pr-10 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden transition-all ${error ? 'border-red-500' : 'border-gray-300'}`}
+        {...props} 
+      />
+      <button 
+        type="button" 
+        onClick={onToggle} 
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#087CA7] focus:outline-none flex items-center justify-center"
+      >
+        {show ? (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+        ) : (
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+        )}
+      </button>
+    </div>
+    {error && <span className="text-red-500 text-[10px] ml-1 mt-0.5">{error}</span>}
+  </div>
+);
+
+interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  label: string;
+  error?: string;
+  options: string[];
+  defaultOption: string;
+}
+
+const SelectField = ({ label, error, options, defaultOption, ...props }: SelectFieldProps) => (
+  <div className="flex flex-col">
+    <label className="text-[11px] font-bold text-gray-500 font-['Work_Sans'] ml-1 mb-1 uppercase tracking-tighter">
+      {label} {props.required && "*"}
+    </label>
+    <select 
+      className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none bg-white transition-all ${error ? 'border-red-500' : 'border-gray-300'}`}
+      {...props}
+    >
+      <option value="">{defaultOption}</option>
+      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+    </select>
     {error && <span className="text-red-500 text-[10px] ml-1 mt-0.5">{error}</span>}
   </div>
 );
