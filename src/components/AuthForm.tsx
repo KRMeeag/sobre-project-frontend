@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
 import axios from "axios";
-import { PROVINCES, PHILIPPINE_LOCATIONS } from "../lib/philippines";
+import { getAllProvinces, getCities, getBarangays, type LocationNode } from "../lib/philippines";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -12,6 +12,7 @@ export default function AuthForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Form data stores the actual string names to send to Supabase
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -25,7 +26,19 @@ export default function AuthForm() {
     province: "",
   });
 
+  // Selected codes trigger the PSGC API calls
+  const [selectedCodes, setSelectedCodes] = useState({
+    province: "",
+    city: "",
+    barangay: "",
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Location Lists
+  const [provincesList, setProvincesList] = useState<LocationNode[]>([]);
+  const [citiesList, setCitiesList] = useState<LocationNode[]>([]);
+  const [barangaysList, setBarangaysList] = useState<LocationNode[]>([]);
 
   useEffect(() => {
     setStep(1);
@@ -33,18 +46,36 @@ export default function AuthForm() {
     setShowPassword(false);
     setShowConfirmPassword(false);
     setFormData({
-      fullName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-      storeName: "",
-      building: "",
-      street: "",
-      barangay: "",
-      city: "",
-      province: "",
+      fullName: "", email: "", password: "", confirmPassword: "",
+      storeName: "", building: "", street: "", barangay: "", city: "", province: "",
     });
+    setSelectedCodes({ province: "", city: "", barangay: "" });
   }, [isSignUp]);
+
+  // 1. Fetch Provinces on Mount
+  useEffect(() => {
+    getAllProvinces().then(setProvincesList).catch(console.error);
+  }, []);
+
+  // 2. Fetch Cities when Province changes
+  useEffect(() => {
+    if (selectedCodes.province) {
+      getCities(selectedCodes.province).then(setCitiesList).catch(console.error);
+    } else {
+      setCitiesList([]);
+    }
+    // Reset downward dependencies
+    setBarangaysList([]);
+  }, [selectedCodes.province]);
+
+  // 3. Fetch Barangays when City changes
+  useEffect(() => {
+    if (selectedCodes.city) {
+      getBarangays(selectedCodes.city).then(setBarangaysList).catch(console.error);
+    } else {
+      setBarangaysList([]);
+    }
+  }, [selectedCodes.city]);
 
   const validateStep1 = () => {
     const newErrors: Record<string, string> = {};
@@ -116,8 +147,6 @@ export default function AuthForm() {
     }
   };
 
-  const cities = formData.province ? PHILIPPINE_LOCATIONS[formData.province] || [] : [];
-
   return (
     <div className="w-full lg:w-[30%] bg-white flex flex-col items-center justify-center p-6 border-l border-gray-100 min-h-screen">
       <div className="w-full max-w-90 flex flex-col">
@@ -147,7 +176,7 @@ export default function AuthForm() {
               <InputField 
                 label="Email" type="email" placeholder="user@email.com" required
                 value={formData.email} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, email: e.target.value})} 
+                onChange={(e) => setFormData({...formData, email: e.target.value})} 
               />
               
               <PasswordField 
@@ -155,7 +184,7 @@ export default function AuthForm() {
                 value={formData.password} 
                 show={showPassword} 
                 onToggle={() => setShowPassword(!showPassword)}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, password: e.target.value})} 
+                onChange={(e) => setFormData({...formData, password: e.target.value})} 
               />
             </div>
           )}
@@ -165,13 +194,13 @@ export default function AuthForm() {
               <InputField 
                 label="Full Name" placeholder="Juan Dela Cruz" required error={errors.fullName}
                 value={formData.fullName} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, fullName: e.target.value})} 
+                onChange={(e) => setFormData({...formData, fullName: e.target.value})} 
               />
               
               <InputField 
                 label="Email" type="email" placeholder="user@email.com" required error={errors.email}
                 value={formData.email} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, email: e.target.value})} 
+                onChange={(e) => setFormData({...formData, email: e.target.value})} 
               />
               
               <PasswordField 
@@ -179,7 +208,7 @@ export default function AuthForm() {
                 value={formData.password} 
                 show={showPassword} 
                 onToggle={() => setShowPassword(!showPassword)}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, password: e.target.value})} 
+                onChange={(e) => setFormData({...formData, password: e.target.value})} 
               />
 
               <PasswordField 
@@ -187,7 +216,7 @@ export default function AuthForm() {
                 value={formData.confirmPassword} 
                 show={showConfirmPassword} 
                 onToggle={() => setShowConfirmPassword(!showConfirmPassword)}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, confirmPassword: e.target.value})} 
+                onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})} 
               />
             </div>
           )}
@@ -197,47 +226,70 @@ export default function AuthForm() {
               <InputField 
                 label="Store Name" placeholder="Establishment Name" required error={errors.storeName}
                 value={formData.storeName} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, storeName: e.target.value})} 
+                onChange={(e) => setFormData({...formData, storeName: e.target.value})} 
               />
               
               <InputField 
                 label="Building (Optional)" placeholder="Unit 101, Blue Bldg"
                 value={formData.building} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, building: e.target.value})} 
+                onChange={(e) => setFormData({...formData, building: e.target.value})} 
               />
 
               <InputField 
                 label="Street" placeholder="Rizal Avenue" required error={errors.street}
                 value={formData.street} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, street: e.target.value})} 
+                onChange={(e) => setFormData({...formData, street: e.target.value})} 
               />
               
-              <InputField 
-                label="Barangay" placeholder="San Antonio" required error={errors.barangay}
-                value={formData.barangay} 
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setFormData({...formData, barangay: e.target.value})} 
+              {/* BARANGAY UPDATED TO DROPDOWN */}
+              <SelectField 
+                label="Barangay" 
+                required 
+                error={errors.barangay}
+                value={selectedCodes.barangay}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  const name = barangaysList.find(b => b.code === code)?.name || "";
+                  setSelectedCodes(prev => ({ ...prev, barangay: code }));
+                  setFormData(prev => ({ ...prev, barangay: name }));
+                }}
+                options={barangaysList}
+                defaultOption={selectedCodes.city ? "Select Barangay" : "Select City First"}
+                disabled={!selectedCodes.city}
+              />
+              
+              {/* CITY PLACED BEFORE PROVINCE AS REQUESTED */}
+              <SelectField 
+                label="City / Municipality" 
+                required 
+                error={errors.city}
+                value={selectedCodes.city}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  const name = citiesList.find(c => c.code === code)?.name || "";
+                  setSelectedCodes(prev => ({ ...prev, city: code, barangay: "" }));
+                  setFormData(prev => ({ ...prev, city: name, barangay: "" }));
+                }}
+                options={citiesList}
+                defaultOption={selectedCodes.province ? "Select City" : "Select Province First"}
+                disabled={!selectedCodes.province}
               />
 
               <SelectField 
                 label="Province" 
                 required 
                 error={errors.province}
-                value={formData.province}
-                onChange={(e) => setFormData({...formData, province: e.target.value, city: ""})}
-                options={PROVINCES}
+                value={selectedCodes.province}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  const name = provincesList.find(p => p.code === code)?.name || "";
+                  setSelectedCodes(prev => ({ ...prev, province: code, city: "", barangay: "" }));
+                  setFormData(prev => ({ ...prev, province: name, city: "", barangay: "" }));
+                }}
+                options={provincesList}
                 defaultOption="Select Province"
               />
 
-              <SelectField 
-                label="City / Municipality" 
-                required 
-                error={errors.city}
-                value={formData.city}
-                onChange={(e) => setFormData({...formData, city: e.target.value})}
-                options={cities}
-                defaultOption={formData.province ? "Select City" : "Select Province First"}
-                disabled={!formData.province}
-              />
             </div>
           )}
 
@@ -338,10 +390,11 @@ const PasswordField = ({ label, show, onToggle, error, ...props }: PasswordField
   </div>
 );
 
+// UPDATED: Now accepts an array of { code, name } objects
 interface SelectFieldProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
   error?: string;
-  options: string[];
+  options: LocationNode[];
   defaultOption: string;
 }
 
@@ -351,11 +404,11 @@ const SelectField = ({ label, error, options, defaultOption, ...props }: SelectF
       {label} {props.required && "*"}
     </label>
     <select 
-      className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none bg-white transition-all ${error ? 'border-red-500' : 'border-gray-300'}`}
+      className={`w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-[#087CA7] outline-none bg-white transition-all ${error ? 'border-red-500' : 'border-gray-300'} disabled:bg-gray-100 disabled:cursor-not-allowed`}
       {...props}
     >
       <option value="">{defaultOption}</option>
-      {options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+      {options.map(opt => <option key={opt.code} value={opt.code}>{opt.name}</option>)}
     </select>
     {error && <span className="text-red-500 text-[10px] ml-1 mt-0.5">{error}</span>}
   </div>
