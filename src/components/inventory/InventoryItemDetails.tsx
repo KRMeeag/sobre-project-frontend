@@ -10,6 +10,7 @@ import FileUploadDropzone from "../general/FileUploadDropzone";
 import DetailField from "../general/DetailField";
 import type { InventoryItem } from "../../types";
 import axios from "axios";
+import { supabase } from "../../lib/supabase"; // <-- ADDED
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -92,7 +93,12 @@ const InventoryItemDetails = ({
   const handleSave = async () => {
     if (!window.confirm("Are you sure you want to save these changes?")) return;
     try {
-      await axios.patch(`${API_URL}/inventory/${item.id}`, formData);
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
+
+      // Passing it in the query string keeps formData pristine so it doesn't crash the Supabase update!
+      await axios.patch(`${API_URL}/inventory/${item.id}?users_id=${userId}`, formData);
+      
       setIsEditing(false);
       setIsDirty(false);
       if (onUpdate) onUpdate();

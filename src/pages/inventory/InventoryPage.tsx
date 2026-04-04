@@ -7,37 +7,17 @@ import {
   TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import InventoryRow from "../components/inventory/InventoryRow";
-import InventorySidebar from "../components/inventory/InventorySidebar";
-import AddItemModal from "../components/inventory/AddItemModal";
-import ConfirmDeleteModal from "../components/inventory/ConfirmDeleteModal";
-import Toast from "../components/general/Toast";
-import type { ToastType } from "../types";
-
-// Custom Hooks
-import { useInventoryData } from "../hooks/useInventoryData";
-import { useInventoryFilters } from "../hooks/useInventoryFilters";
-import { useSelectionManager } from "../hooks/useSelectionManager";
-import { useExportManager } from "../hooks/useExportManager";
+import InventoryRow from "../../components/inventory/InventoryRow";
+import InventorySidebar from "../../components/inventory/InventorySidebar";
+import AddItemModal from "../../components/inventory/AddItemModal";
+import ConfirmDeleteModal from "../../components/inventory/ConfirmDeleteModal";
+import Toast from "../../components/general/Toast";
+import { useInventoryData, useInventoryFilters, useSelectionManager, useExportManager, useToast  } from "../../hooks/";
 
 const InventoryPage = () => {
   const mainScrollRef = useRef<HTMLElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
-
-  // 1. Local Toast State (kept inline for atomized commits)
-  const [toast, setToast] = useState<{
-    message: string;
-    type: ToastType;
-    isVisible: boolean;
-  }>({
-    message: "",
-    type: "success",
-    isVisible: false,
-  });
-
-  const showToast = (message: string, type: ToastType = "success") => {
-    setToast({ message, type, isVisible: true });
-  };
+  const { toast, showToast, hideToast } = useToast();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -134,11 +114,11 @@ const InventoryPage = () => {
 
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
-      <Toast
-        isVisible={toast.isVisible}
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+      <Toast 
+        isVisible={toast.isVisible} 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={hideToast} 
       />
       <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 

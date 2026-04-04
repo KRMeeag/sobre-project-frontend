@@ -1,7 +1,7 @@
 import { useState } from "react";
 import FilterSection from "./FilterSection";
 import SortChip from "./SortChip";
-import type { FilterKey } from "../../pages/InventoryPage";
+import type { FilterKey } from "../../pages/inventory/InventoryPage";
 
 interface InventorySidebarProps {
   activeSort: string | null;

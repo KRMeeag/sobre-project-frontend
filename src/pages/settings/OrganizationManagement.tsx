@@ -154,105 +154,151 @@ export default function OrganizationManagement() {
 
   const usersToDelete = users.filter(u => selectedUserIds.includes(u.auth_user_id));
 
-  if (loading) return <div className="animate-pulse text-gray-500 p-10">Loading...</div>;
-
-  const gridTemplate = isDeletingMode 
-    ? "grid-cols-[80px_2.5fr_2.5fr_1.5fr_1.5fr]" 
-    : "grid-cols-[2.5fr_2.5fr_1.5fr_1.5fr_1fr]";
-
   return (
     <div className="w-full animate-in fade-in duration-300 relative">
-      <h1 className="text-[32px] font-bold font-['Arvo'] text-[#223843] mb-8">User & Role Management</h1>
+      <h1 className="text-4xl font-bold font-['Raleway'] text-[#004385] mb-8">User Management</h1>
 
       <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-4">
-          <div className="relative w-75 h-11.5 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:border-[#002f5a]">
-            <input type="text" placeholder="Search by user..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-[15px]" />
+          <div className="relative w-75 h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] outline-none">
+            <input type="text" placeholder="Search by user..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-transparent outline-none text-[15px] text-gray-700" />
             <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
           </div>
-          <div className="relative w-32.5 h-11.5 bg-white border border-gray-300 rounded-lg flex items-center">
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[15px] pl-4 pr-10 appearance-none capitalize">
+          <div className="relative w-32.5 h-11 bg-white border border-gray-300 rounded-lg flex items-center shadow-sm">
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="w-full h-full bg-transparent outline-none text-[15px] pl-4 pr-10 appearance-none capitalize text-gray-600">
               <option value="">Roles</option>
               <option value="Manager">Manager</option>
               <option value="Staff">Staff</option>
             </select>
-            <ChevronDownIcon className="w-4 h-4 absolute right-3 text-gray-400" />
+            <ChevronDownIcon className="w-4 h-4 absolute right-3 text-gray-400 pointer-events-none" />
           </div>
         </div>
         <div className="flex items-center gap-3">
           {!isDeletingMode ? (
             <>
-              <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-[#34a853] text-white px-5 py-2.5 rounded-lg"><PlusIcon className="w-5 h-5" />New User</button>
-              <button onClick={() => setIsDeletingMode(true)} className="flex items-center gap-2 bg-[#cb4a4a] text-white px-5 py-2.5 rounded-lg"><TrashIcon className="w-5 h-5" />Delete User</button>
+              <button onClick={() => setIsAddModalOpen(true)} className="flex items-center gap-2 bg-[#2aa564] hover:bg-[#238f55] text-white font-bold px-6 py-2.5 rounded-lg shadow-sm transition-colors text-sm"><PlusIcon className="w-5 h-5" />New User</button>
+              <button onClick={() => setIsDeletingMode(true)} className="flex items-center gap-2 bg-white border border-[#b13e3e] hover:bg-red-50 text-[#b13e3e] font-bold px-6 py-2.5 rounded-lg shadow-sm transition-colors text-sm"><TrashIcon className="w-5 h-5" />Delete User</button>
             </>
           ) : (
             <>
-              <button onClick={() => selectedUserIds.length > 0 && setIsDeleteModalOpen(true)} disabled={selectedUserIds.length === 0} className="bg-[#cb4a4a] text-white px-5 py-2.5 rounded-lg disabled:opacity-50">Confirm ({selectedUserIds.length})</button>
-              <button onClick={handleCancelDeleteMode} className="bg-white border px-5 py-2.5 rounded-lg">Cancel</button>
+              <button onClick={() => selectedUserIds.length > 0 && setIsDeleteModalOpen(true)} disabled={selectedUserIds.length === 0} className="bg-[#b13e3e] hover:bg-[#8c2d2d] text-white font-bold px-6 py-2.5 rounded-lg disabled:opacity-50 shadow-sm transition-colors text-sm">Confirm ({selectedUserIds.length})</button>
+              <button onClick={handleCancelDeleteMode} className="bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 font-bold px-6 py-2.5 rounded-lg shadow-sm transition-colors text-sm">Cancel</button>
             </>
           )}
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border overflow-hidden">
-        <div className={`bg-[#f4f4f4] h-15 grid ${gridTemplate} items-center px-8 border-b`}>
-          {isDeletingMode && <div className="text-center font-semibold text-[#a29898]">#</div>}
-          <div className="text-center font-semibold text-[#a29898]">Name</div>
-          <div className="text-center font-semibold text-[#a29898]">Email</div>
-          <div className="text-center font-semibold text-[#a29898]">Roles</div>
-          <div className="text-center font-semibold text-[#a29898]">Status</div>
-          {!isDeletingMode && <div className="text-center font-semibold text-[#a29898]">Action</div>}
-        </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left border-collapse table-fixed transition-all">
+            <thead className="bg-[#f8f9fa] text-[#033860] text-xs uppercase tracking-wider font-bold border-b border-gray-200">
+              <tr>
+                {isDeletingMode && <th className="p-4 w-[5%] text-center">#</th>}
+                <th className="p-4 w-[35%] text-center">Name</th>
+                <th className="p-4 w-[25%] text-center">Email</th>
+                <th className="p-4 w-[15%] text-center">Roles</th>
+                <th className="p-4 w-[10%] text-center">Status</th>
+                {!isDeletingMode && <th className="p-4 w-[10%] text-center">Action</th>}
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {loading ? (
+                <tr>
+                  <td colSpan={isDeletingMode ? 5 : 6} className="p-8 text-center text-[#223843]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004385] mx-auto mb-2"></div>
+                    Loading Data...
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={isDeletingMode ? 5 : 6} className="p-8 text-center text-gray-500">
+                    No users match your search.
+                  </td>
+                </tr>
+              ) : (
+                filteredUsers.map((u, index) => {
+                  const isEditingThisRow = editingUserId === u.auth_user_id;
+                  const hasChanges = editingRole.toLowerCase() !== u.role.toLowerCase();
+                  const isMainManager = u.role.toLowerCase() === 'main manager';
+                  const canEdit = !(isMainManager && currentUserRole.toLowerCase() !== 'main manager');
 
-        <div className="flex flex-col">
-          {filteredUsers.map((u) => {
-            const isEditingThisRow = editingUserId === u.auth_user_id;
-            const hasChanges = editingRole.toLowerCase() !== u.role.toLowerCase();
-            const isMainManager = u.role.toLowerCase() === 'main manager';
-            const canEdit = !(isMainManager && currentUserRole.toLowerCase() !== 'main manager');
+                  return (
+                    <tr 
+                      key={u.auth_user_id} 
+                      onClick={() => isDeletingMode && handleSelectUser(u.auth_user_id)}
+                      className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${selectedUserIds.includes(u.auth_user_id) ? 'bg-red-50' : index % 2 === 0 ? "bg-white" : "bg-[#fcfcfc]"}`}
+                    >
+                      {isDeletingMode && (
+                        <td className="p-4 text-center">
+                          <input 
+                            type="checkbox" 
+                            className="rounded border-gray-400 text-[#b13e3e] focus:ring-[#b13e3e] w-4 h-4 cursor-pointer"
+                            checked={selectedUserIds.includes(u.auth_user_id)} 
+                            readOnly 
+                          />
+                        </td>
+                      )}
+                      
+                      <td className="p-4">
+                        <div className="flex items-center justify-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-gray-100 shrink-0 overflow-hidden border border-gray-200">
+                            <img src={u.photo || "/assets/background1.png"} className="w-full h-full object-cover" alt="Profile" />
+                          </div>
+                          <div className="flex flex-col text-left">
+                            <span className="font-bold text-[#223843] truncate w-40">{u.username}</span>
+                            <span className="text-xs text-gray-500 truncate w-40">{u.store_name} • {u.province}</span>
+                          </div>
+                        </div>
+                      </td>
 
-            return (
-              <div key={u.auth_user_id} className={`grid ${gridTemplate} items-center px-8 h-20 border-b hover:bg-gray-50 ${selectedUserIds.includes(u.auth_user_id) ? 'bg-red-50' : ''}`} onClick={() => isDeletingMode && handleSelectUser(u.auth_user_id)}>
-                {isDeletingMode && <div className="flex justify-center"><input type="checkbox" checked={selectedUserIds.includes(u.auth_user_id)} readOnly /></div>}
-                <div className="flex items-center gap-4 ml-6">
-                  <div className="w-12 h-12 rounded-full bg-gray-200 shrink-0 overflow-hidden border border-gray-200">
-                    {/* FIX: Removed opacity-60 to make image perfectly clear */}
-                    <img src={u.photo || "/assets/background1.png"} className="w-full h-full object-cover" alt="Profile" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-bold text-[#223843]">{u.username}</span>
-                    <span className="text-xs text-gray-400">{u.store_name} • {u.province}</span>
-                  </div>
-                </div>
-                <div className="text-center truncate px-4">{u.email}</div>
-                <div className="flex justify-center">
-                  {isEditingThisRow ? (
-                    <select value={editingRole} onChange={(e) => setEditingRole(e.target.value)} className="border rounded px-2 py-1">
-                      <option value="Manager">Manager</option>
-                      <option value="Staff">Staff</option>
-                    </select>
-                  ) : <span className="capitalize">{u.role}</span>}
-                </div>
-                <div className="flex justify-center"><StatusPill status={u.status} /></div>
-                {!isDeletingMode && (
-                  <div className="flex justify-center gap-2">
-                    {isEditingThisRow ? (
-                      <>
-                        <button onClick={(e) => {e.stopPropagation(); handleSaveRole(u.auth_user_id)}} disabled={!hasChanges || isSavingRole} className={hasChanges ? "text-green-600" : "text-gray-300"}>
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" /></svg>
-                        </button>
-                        <button onClick={(e) => {e.stopPropagation(); cancelEditing()}}><XMarkIcon className="w-6 h-6 text-red-500"/></button>
-                      </>
-                    ) : (canEdit && <button onClick={(e) => {e.stopPropagation(); handleEditClick(u)}}><PencilSquareIcon className="w-6 h-6 text-gray-500"/></button>)}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                      <td className="p-4 text-center text-gray-600 truncate max-w-[200px]">{u.email}</td>
+                      
+                      <td className="p-4 text-center">
+                        {isEditingThisRow ? (
+                          <select value={editingRole} onChange={(e) => setEditingRole(e.target.value)} className="border border-gray-300 rounded px-2 py-1 outline-none focus:border-[#087CA7]">
+                            <option value="Manager">Manager</option>
+                            <option value="Staff">Staff</option>
+                          </select>
+                        ) : (
+                          <span className="capitalize text-gray-800 font-medium">{u.role}</span>
+                        )}
+                      </td>
+                      
+                      <td className="p-4">
+                        <div className="flex justify-center"><StatusPill status={u.status} /></div>
+                      </td>
+
+                      {!isDeletingMode && (
+                        <td className="p-4 text-center">
+                          <div className="flex justify-center gap-2">
+                            {isEditingThisRow ? (
+                              <>
+                                <button onClick={(e) => {e.stopPropagation(); handleSaveRole(u.auth_user_id)}} disabled={!hasChanges || isSavingRole} className={`p-1.5 rounded transition-colors ${hasChanges ? "bg-[#2aa564] hover:bg-[#238f55] text-white shadow-sm" : "bg-gray-100 text-gray-400"}`}>
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" /></svg>
+                                </button>
+                                <button onClick={(e) => {e.stopPropagation(); cancelEditing()}} className="p-1.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-600 rounded transition-colors shadow-sm">
+                                  <XMarkIcon className="w-4 h-4"/>
+                                </button>
+                              </>
+                            ) : (
+                              canEdit && (
+                                <button onClick={(e) => {e.stopPropagation(); handleEditClick(u)}} className="p-1.5 text-gray-400 hover:text-[#087CA7] transition-colors rounded-full hover:bg-gray-100">
+                                  <PencilSquareIcon className="w-5 h-5"/>
+                                </button>
+                              )
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* FIX: Added adminUserId prop to the modal so the backend can trigger the log */}
       <AddUserModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
@@ -269,7 +315,7 @@ export default function OrganizationManagement() {
 function StatusPill({ status }: { status: string }) {
   const isActive = status.toLowerCase() === 'active';
   return (
-    <div className={`h-7 w-25 flex items-center justify-center rounded-full text-[14px] font-bold ${isActive ? "bg-[#e2f9af] text-[#71c33f]" : "bg-[#ffceb9] text-[#f2744e]"}`}>
+    <div className={`px-3 py-1 inline-flex items-center justify-center rounded-full text-xs font-bold ${isActive ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
       {isActive ? "Active" : "Inactive"}
     </div>
   );

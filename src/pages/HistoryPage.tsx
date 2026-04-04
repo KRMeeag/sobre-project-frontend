@@ -8,7 +8,6 @@ import {
   ChevronDownIcon
 } from "@heroicons/react/24/outline";
 
-// Import your components
 import DataTable from "../components/DataTable";
 import InvoiceDetailsModal from "../components/InvoiceDetailsModal"; 
 
@@ -34,7 +33,6 @@ export default function HistoryPage() {
   const [loading, setLoading] = useState(true);
   const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   
-  // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
@@ -62,7 +60,6 @@ export default function HistoryPage() {
         setLoading(false);
       }
     };
-
     fetchHistory();
   }, []);
 
@@ -97,10 +94,6 @@ export default function HistoryPage() {
     });
   }, [logs, searchQuery, actionFilter, areaFilter, startDate, endDate, startTime, endTime]);
 
-  // CSS Grid Template for History
-  const tableGridTemplate = "160px 140px 1fr 160px 140px 200px 250px 80px";
-
-  // The Info Icon Header
   const InfoHeaderIcon = (
     <div className="w-6 h-6 bg-[#ada7a7] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center mx-auto shadow-sm">
       i
@@ -108,14 +101,15 @@ export default function HistoryPage() {
   );
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#e9e9e9] font-['Work_Sans']">
-      <div className="w-full h-13 bg-[#002f5a] shrink-0 shadow-sm"></div>
+    <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
+      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 
-      <div className="p-8 flex-1 flex flex-col w-full max-w-[1500px] mx-auto overflow-hidden">
+      <main className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] transition-colors">
         
-        <h1 className="text-[28px] font-bold font-['Raleway'] text-[#223843] mb-6">
-          Audit History
-        </h1>
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-2">Audit History</h1>
+          <p className="text-gray-500 text-sm">Track user actions and system changes</p>
+        </div>
 
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6 shrink-0">
           <div className="relative w-85 h-11 bg-white border border-gray-300 rounded-md flex items-center px-4 shadow-sm focus-within:border-[#002f5a] transition-colors">
@@ -157,67 +151,69 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {/* Generic Data Table */}
         <DataTable 
           headers={["Date", "Time", "User", "Area", "Action", "Item/Record", "Summary", InfoHeaderIcon]}
-          gridTemplate={tableGridTemplate}
           loading={loading}
           empty={filteredLogs.length === 0}
           emptyMessage="No audit logs match your filters."
         >
-          {filteredLogs.map((log) => (
-            <div 
+          {filteredLogs.map((log, index) => (
+            <tr 
               key={log.id} 
-              className="grid items-center px-8 h-17.5 border-b border-gray-100 hover:bg-gray-50 transition-colors"
-              style={{ gridTemplateColumns: tableGridTemplate }}
+              className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfc]"}`}
             >
-              <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{formatUIDate(log.date)}</div>
-              <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{formatUITime(log.timestamp)}</div>
+              <td className="p-4 text-center text-gray-500">{formatUIDate(log.date)}</td>
+              <td className="p-4 text-center text-gray-500">{formatUITime(log.timestamp)}</td>
 
-              <div className="flex items-center justify-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden">
-                  {log.users?.photo ? (
-                    <img src={log.users.photo} alt="avatar" className="w-full h-full object-cover" />
+              <td className="p-4">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden">
+                    {log.users?.photo ? (
+                      <img src={log.users.photo} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 mt-1">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                      </svg>
+                    )}
+                  </div>
+                  <span className="font-bold text-[#223843]">
+                    {log.users?.username || "Unknown"}
+                  </span>
+                </div>
+              </td>
+
+              <td className="p-4 text-center text-gray-500">{log.area}</td>
+              
+              <td className="p-4">
+                <div className="flex justify-center items-center">
+                  <ActionTag action={log.action} />
+                </div>
+              </td>
+
+              <td className="p-4 text-center text-gray-500 truncate max-w-[200px]">{log.item}</td>
+              <td className="p-4 text-center text-gray-500 truncate max-w-[250px]">{log.summary}</td>
+
+              <td className="p-4">
+                <div className="flex justify-center items-center">
+                  {log.receipt_id ? (
+                    <button 
+                      onClick={() => setSelectedReceiptId(log.receipt_id)}
+                      className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#223843] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors focus:outline-none shadow-sm cursor-pointer"
+                      title="View Invoice"
+                    >
+                      i
+                    </button>
                   ) : (
-                    <svg viewBox="0 0 24 24" fill="white" className="w-6 h-6 mt-1">
-                      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                    </svg>
+                    <div className="w-6 h-6 bg-[#ada7a7] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center shadow-sm">
+                      i
+                    </div>
                   )}
                 </div>
-                <span className="text-[16px] font-['Raleway'] font-bold text-[#223843]">
-                  {log.users?.username || "Unknown"}
-                </span>
-              </div>
-
-              <div className="text-[15px] font-['Raleway'] text-gray-500 text-center">{log.area}</div>
-              
-              <div className="flex justify-center items-center">
-                <ActionTag action={log.action} />
-              </div>
-
-              <div className="text-[15px] font-['Raleway'] text-gray-500 text-center truncate px-2">{log.item}</div>
-              <div className="text-[15px] font-['Raleway'] text-gray-500 text-center truncate px-2">{log.summary}</div>
-
-              <div className="flex justify-center items-center">
-                {log.receipt_id ? (
-                  <button 
-                    onClick={() => setSelectedReceiptId(log.receipt_id)}
-                    className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#223843] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors focus:outline-none shadow-sm cursor-pointer"
-                    title="View Invoice"
-                  >
-                    i
-                  </button>
-                ) : (
-                  <div className="w-6 h-6 bg-[#ada7a7] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center shadow-sm">
-                    i
-                  </div>
-                )}
-              </div>
-            </div>
+              </td>
+            </tr>
           ))}
         </DataTable>
-
-      </div>
+      </main>
 
       <InvoiceDetailsModal 
         isOpen={!!selectedReceiptId}
@@ -228,7 +224,6 @@ export default function HistoryPage() {
   );
 }
 
-// --- HELPER COMPONENTS ---
 interface DynamicFilterInputProps {
   type: string;
   label: string;

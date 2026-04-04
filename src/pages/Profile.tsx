@@ -5,7 +5,7 @@ import {
   PencilSquareIcon, 
   DocumentCheckIcon, 
   XMarkIcon,
-  CameraIcon // <-- Camera icon for the upload overlay
+  CameraIcon 
 } from "@heroicons/react/24/outline";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -14,24 +14,21 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false); // State for avatar upload
+  const [uploadingAvatar, setUploadingAvatar] = useState(false); 
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
   
-  // Reference for the hidden file input
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Profile Data States
   const [profileData, setProfileData] = useState({
     username: "",
     role: "",
     phone: "",
     storeName: "",
     formattedAddress: "",
-    photo: "", // <-- Holds the photo URL
+    photo: "", 
   });
 
-  // Edit Form States
   const [editForm, setEditForm] = useState({
     username: "",
     phone: "",
@@ -41,7 +38,6 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        // 1. Get authenticated user
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           setLoading(false);
@@ -49,11 +45,9 @@ export default function ProfilePage() {
         }
         setAuthUserId(user.id);
 
-        // 2. Fetch User Profile (public.users)
         const userRes = await axios.get(`${API_URL}/users/${user.id}`);
         const userData = userRes.data;
 
-        // 3. Fetch Linked Store Profile (public.store)
         let storeData = null;
         try {
           const storeRes = await axios.get(`${API_URL}/store/user/${user.id}`);
@@ -62,7 +56,6 @@ export default function ProfilePage() {
           console.warn("No store linked to this user yet.");
         }
 
-        // 4. Format Address
         let address = "No Address Provided";
         if (storeData) {
           setStoreId(storeData.id);
@@ -79,14 +72,13 @@ export default function ProfilePage() {
           }
         }
 
-        // 5. Set States
         const loadedProfile = {
           username: userData?.username || "Unknown User",
           role: userData?.role ? userData.role.charAt(0).toUpperCase() + userData.role.slice(1) : "Staff",
           phone: userData?.phone || "No Phone Number",
           storeName: storeData?.store_name || "No Store Linked",
           formattedAddress: address,
-          photo: userData?.photo || "", // Load the photo URL
+          photo: userData?.photo || "", 
         };
 
         setProfileData(loadedProfile);
@@ -106,7 +98,6 @@ export default function ProfilePage() {
     fetchProfileData();
   }, []);
 
-  // --- AVATAR UPLOAD LOGIC ---
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       setUploadingAvatar(true);
@@ -117,25 +108,21 @@ export default function ProfilePage() {
 
       const file = event.target.files[0];
       const fileExt = file.name.split('.').pop();
-      // Generate a unique file name to avoid caching issues
       const fileName = `${authUserId}-${Math.random()}.${fileExt}`;
       const filePath = `${fileName}`;
 
-      // 1. Upload to Supabase Storage 'avatars' bucket
       const { error: uploadError } = await supabase.storage
         .from('avatars')
         .upload(filePath, file);
 
       if (uploadError) throw uploadError;
 
-      // 2. Get the public URL of the uploaded image
       const { data: publicUrlData } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
       const publicUrl = publicUrlData.publicUrl;
 
-      // 3. Update the 'photo' column in the public.users table
       const { error: updateError } = await supabase
         .from('users')
         .update({ photo: publicUrl })
@@ -143,14 +130,13 @@ export default function ProfilePage() {
 
       if (updateError) throw updateError;
 
-      // 4. Update local state so the image changes immediately
       setProfileData(prev => ({ ...prev, photo: publicUrl }));
 
       window.dispatchEvent(new CustomEvent("avatarChanged", { detail: publicUrl }));
-      // Fire Audit Log using the state variable
+      
       await axios.post(`${API_URL}/audit`, {
         users_id: authUserId,
-        store_id: storeId, // <-- Fixed
+        store_id: storeId, 
         area: "Profile",
         action: "Updating",
         item: "Profile Info",
@@ -164,7 +150,6 @@ export default function ProfilePage() {
     }
   };
 
-  // --- SAVE PROFILE TEXT DATA LOGIC ---
   const handleSave = async () => {
     if (!authUserId) return;
     setSaving(true);
@@ -195,15 +180,15 @@ export default function ProfilePage() {
       
       setEditForm((prev) => ({ ...prev, password: "" }));
       setIsEditing(false);
-      // Check what changed and fire specific logs using the state variable
+      
       if (editForm.username !== profileData.username) {
-        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated username" }); // <-- Fixed
+        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated username" }); 
       }
       if (editForm.phone !== profileData.phone) {
-        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated the number" }); // <-- Fixed
+        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated the number" }); 
       }
       if (editForm.password.trim() !== "") {
-        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated password" }); // <-- Fixed
+        await axios.post(`${API_URL}/audit`, { users_id: authUserId, store_id: storeId, area: "Profile", action: "Updating", item: "Profile Info", summary: "Updated password" }); 
       }
     } catch (err: any) {
       console.error("Error saving profile:", err);
@@ -215,33 +200,28 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col min-h-screen bg-[#e9e9e9] font-['Work_Sans'] text-[#223843]">
-        <div className="w-full h-13 bg-[#002f5a] shrink-0 shadow-sm"></div>
+      <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
+        <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
         <div className="flex-1 flex items-center justify-center p-10">
-          <div className="animate-pulse text-gray-500">Loading profile...</div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004385] mx-auto mb-2"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#e9e9e9] font-['Work_Sans'] text-[#223843]">
-      {/* Top Header Bar */}
-      <div className="w-full h-13 bg-[#002f5a] shrink-0 shadow-sm"></div>
+    <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
+      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-10 flex items-center justify-center">
+      <main className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] [&::-webkit-scrollbar-thumb]:rounded-full transition-colors flex items-center justify-center">
         <div className="w-full max-w-262.5">
-          <h1 className="text-[26px] font-bold text-[#1e3445] mb-6">
+          <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-6">
             {isEditing ? "Edit Profile" : "Profile"}
           </h1>
 
-          <div className="bg-white rounded-2xl border-[1.5px] p-12 min-h-120 w-full shadow-sm flex flex-col md:flex-row gap-16 items-center">
+          <div className="bg-white rounded-xl border border-gray-200 p-12 min-h-120 w-full shadow-sm flex flex-col md:flex-row gap-16 items-center">
             
-            {/* --- Avatar Area with Hover & Upload --- */}
             <div className="relative group cursor-pointer shrink-0" onClick={() => fileInputRef.current?.click()}>
-              
-              {/* Hidden File Input */}
               <input 
                 type="file" 
                 ref={fileInputRef} 
@@ -250,8 +230,7 @@ export default function ProfilePage() {
                 className="hidden" 
               />
 
-              {/* PERFECT CIRCLE STYLING */}
-              <div className="w-64 h-64 bg-[#b3b9bc] rounded-full flex items-center justify-center overflow-hidden relative shadow-sm transition-all group-hover:brightness-75 aspect-square border-4 border-white">
+              <div className="w-64 h-64 bg-gray-100 rounded-full flex items-center justify-center overflow-hidden relative shadow-sm transition-all group-hover:brightness-75 aspect-square border border-gray-200">
                 {uploadingAvatar ? (
                   <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                     <span className="text-white font-semibold">Uploading...</span>
@@ -265,39 +244,35 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Hover Overlay with Camera Icon */}
               <div className="absolute inset-0 bg-black/40 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
                 <CameraIcon className="w-10 h-10 mb-2" />
                 <span className="font-semibold text-sm">Change Photo</span>
               </div>
             </div>
 
-            {/* Details / Form Area */}
             <div className="flex-1 w-full pt-2">
-              
-              {/* --- VIEW MODE --- */}
               {!isEditing ? (
                 <div className="flex flex-col h-full justify-center">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-y-10 gap-x-12 mb-10">
                     <div>
-                      <p className="text-[14px] font-bold text-[#1e3445] mb-1">Username</p>
-                      <p className="text-[15px] text-[#4a5c6a]">{profileData.username}</p>
+                      <p className="text-[14px] font-bold text-[#004385] mb-1">Username</p>
+                      <p className="text-[15px] text-gray-600">{profileData.username}</p>
                     </div>
                     <div>
-                      <p className="text-[14px] font-bold text-[#1e3445] mb-1">Role</p>
-                      <p className="text-[15px] text-[#4a5c6a]">{profileData.role}</p>
+                      <p className="text-[14px] font-bold text-[#004385] mb-1">Role</p>
+                      <p className="text-[15px] text-gray-600">{profileData.role}</p>
                     </div>
                     <div>
-                      <p className="text-[14px] font-bold text-[#1e3445] mb-1">Phone</p>
-                      <p className="text-[15px] text-[#4a5c6a]">{profileData.phone}</p>
+                      <p className="text-[14px] font-bold text-[#004385] mb-1">Phone</p>
+                      <p className="text-[15px] text-gray-600">{profileData.phone}</p>
                     </div>
                     <div>
-                      <p className="text-[14px] font-bold text-[#1e3445] mb-1">Store Name</p>
-                      <p className="text-[15px] text-[#4a5c6a]">{profileData.storeName}</p>
+                      <p className="text-[14px] font-bold text-[#004385] mb-1">Store Name</p>
+                      <p className="text-[15px] text-gray-600">{profileData.storeName}</p>
                     </div>
                     <div className="md:col-span-2">
-                      <p className="text-[14px] font-bold text-[#1e3445] mb-1">Address</p>
-                      <p className="text-[15px] text-[#4a5c6a] leading-relaxed pr-8">
+                      <p className="text-[14px] font-bold text-[#004385] mb-1">Address</p>
+                      <p className="text-[15px] text-gray-600 leading-relaxed pr-8">
                         {profileData.formattedAddress}
                       </p>
                     </div>
@@ -306,7 +281,7 @@ export default function ProfilePage() {
                   <div>
                     <button
                       onClick={() => setIsEditing(true)}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-white border border-[#1e3445] text-[#1e3445] rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors focus:outline-none"
+                      className="flex items-center gap-2 px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 transition-colors focus:outline-none shadow-sm"
                     >
                       <PencilSquareIcon className="w-4 h-4" />
                       Edit Profile
@@ -315,23 +290,21 @@ export default function ProfilePage() {
                 </div>
               ) : (
 
-              /* --- EDIT MODE --- */
                 <div className="flex flex-col h-full justify-center gap-7">
-                  
                   <div>
-                    <label className="block text-[13px] font-bold text-gray-400 mb-1.5">
+                    <label className="block text-[13px] font-bold text-gray-500 mb-1.5">
                       Username
                     </label>
                     <input
                       type="text"
                       value={editForm.username}
                       onChange={(e) => setEditForm({ ...editForm, username: e.target.value })}
-                      className="w-full max-w-105 border border-gray-300 rounded-lg px-4 py-3 text-[14px] text-gray-700 focus:outline-none focus:border-[#002f5a] focus:ring-1 focus:ring-[#002f5a] transition-all bg-[#fdfdfd]"
+                      className="w-full max-w-105 border border-gray-300 rounded-lg px-4 py-3 text-[14px] text-gray-700 focus:outline-none focus:border-[#087CA7] focus:ring-1 focus:ring-[#087CA7] transition-all bg-white shadow-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold text-gray-400 mb-1.5">
+                    <label className="block text-[13px] font-bold text-gray-500 mb-1.5">
                       Password
                     </label>
                     <input
@@ -339,7 +312,7 @@ export default function ProfilePage() {
                       placeholder="****************"
                       value={editForm.password}
                       onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                      className="w-full max-w-105 border border-gray-300 rounded-lg px-4 py-3 text-[14px] text-gray-700 focus:outline-none focus:border-[#002f5a] focus:ring-1 focus:ring-[#002f5a] transition-all bg-[#fdfdfd] placeholder:text-gray-400"
+                      className="w-full max-w-105 border border-gray-300 rounded-lg px-4 py-3 text-[14px] text-gray-700 focus:outline-none focus:border-[#087CA7] focus:ring-1 focus:ring-[#087CA7] transition-all bg-white shadow-sm placeholder:text-gray-400"
                     />
                     <p className="text-[11px] text-gray-400 mt-1.5 italic">
                       Leave blank to keep your current password.
@@ -347,7 +320,7 @@ export default function ProfilePage() {
                   </div>
 
                   <div>
-                    <label className="block text-[13px] font-bold text-gray-400 mb-1.5">
+                    <label className="block text-[13px] font-bold text-gray-500 mb-1.5">
                       Phone Number
                     </label>
                     <input
@@ -355,7 +328,7 @@ export default function ProfilePage() {
                       placeholder="0900 000 0000"
                       value={editForm.phone}
                       onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      className="w-full max-w-105 border border-gray-300 rounded-lg px-4 py-3 text-[14px] text-gray-700 focus:outline-none focus:border-[#002f5a] focus:ring-1 focus:ring-[#002f5a] transition-all bg-[#fdfdfd]"
+                      className="w-full max-w-105 border border-gray-300 rounded-lg px-4 py-3 text-[14px] text-gray-700 focus:outline-none focus:border-[#087CA7] focus:ring-1 focus:ring-[#087CA7] transition-all bg-white shadow-sm"
                     />
                   </div>
 
@@ -363,9 +336,9 @@ export default function ProfilePage() {
                     <button
                       onClick={handleSave}
                       disabled={saving}
-                      className="flex items-center gap-2 bg-[#002f5a] hover:bg-[#001f3f] text-white font-medium py-2.5 px-6 rounded-lg transition-colors text-sm focus:outline-none shadow-sm disabled:opacity-50"
+                      className="flex items-center gap-2 bg-[#2aa564] hover:bg-[#238f55] text-white font-bold py-2.5 px-6 rounded-lg transition-colors text-sm focus:outline-none shadow-sm disabled:opacity-50"
                     >
-                      <DocumentCheckIcon className="w-4 h-4" />
+                      <DocumentCheckIcon className="w-5 h-5" />
                       {saving ? "Saving..." : "Save Changes"}
                     </button>
                     
@@ -379,19 +352,18 @@ export default function ProfilePage() {
                         setIsEditing(false);
                       }}
                       disabled={saving}
-                      className="flex items-center gap-2 bg-white border border-[#1e3445] text-[#1e3445] hover:bg-gray-50 font-medium py-2.5 px-6 rounded-lg transition-colors text-sm focus:outline-none disabled:opacity-50"
+                      className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 font-bold py-2.5 px-6 rounded-lg transition-colors text-sm focus:outline-none disabled:opacity-50 shadow-sm"
                     >
-                      <XMarkIcon className="w-4 h-4" />
+                      <XMarkIcon className="w-5 h-5" />
                       Cancel
                     </button>
                   </div>
-
                 </div>
               )}
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

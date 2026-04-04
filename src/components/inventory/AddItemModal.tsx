@@ -4,6 +4,7 @@ import { XMarkIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
 import FileUploadDropzone from "../general/FileUploadDropzone";
 import FormInput from "../general/FormInput";
 import ComboboxInput from "../general/ComboboxInput";
+import { supabase } from "../../lib/supabase"; // <-- ADDED
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -101,7 +102,11 @@ export default function AddItemModal({
     const submittedName = formData.name.trim();
 
     try {
-      await axios.post(`${API_URL}/inventory`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
+
+      // Safely passed users_id in the URL to avoid database schema crashes
+      await axios.post(`${API_URL}/inventory?users_id=${userId}`, {
         store_id: storeId,
         name: submittedName,
         category: formData.category.trim(),

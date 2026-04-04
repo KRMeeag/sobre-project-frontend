@@ -21,7 +21,6 @@ const NavBar = ({ role, photo }: NavBarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   
-  // NEW: State to control the logout confirmation modal
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const allMenuItems = [
@@ -49,23 +48,21 @@ const NavBar = ({ role, photo }: NavBarProps) => {
 
   const isStaff = role?.toLowerCase().trim() === "staff";
 
+  // ADDED "sales" to the allowed list for Staff
   const menuItems = isStaff
-    ? allMenuItems.filter((item) => ["pos", "inventory"].includes(item.id))
+    ? allMenuItems.filter((item) => ["pos", "inventory", "sales"].includes(item.id))
     : allMenuItems;
 
-  // NEW: Open the modal instead of logging out instantly
   const handleLogoutClick = () => {
     setIsLogoutModalOpen(true);
   };
 
-  // NEW: Execute the actual logout when confirmed
   const confirmLogout = async () => {
     await supabase.auth.signOut();
     setIsLogoutModalOpen(false);
     navigate("/");
   };
 
-  // NEW: Cancel and close the modal
   const cancelLogout = () => {
     setIsLogoutModalOpen(false);
   };
@@ -110,7 +107,6 @@ const NavBar = ({ role, photo }: NavBarProps) => {
 
       <div className="w-full px-2 mt-auto pt-4 border-t border-gray-100 flex flex-col items-center space-y-4">
         
-        {/* AVATAR LINK */}
         <Link
           to="/profile"
           className={`flex flex-col items-center transition-all focus:outline-none rounded-full p-1 border-2 ${
@@ -128,7 +124,6 @@ const NavBar = ({ role, photo }: NavBarProps) => {
           )}
         </Link>
 
-        {/* UPDATED: Triggers the modal instead of instant logout */}
         <button
           onClick={handleLogoutClick}
           className="flex flex-col items-center text-gray-500 hover:text-red-600 transition-colors pb-4"
@@ -138,9 +133,8 @@ const NavBar = ({ role, photo }: NavBarProps) => {
         </button>
       </div>
 
-      {/* --- NEW: LOGOUT CONFIRMATION MODAL --- */}
       {isLogoutModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative flex flex-col items-center text-center">
             <h2 className="text-lg font-bold text-[#223843] mb-6" style={{ fontFamily: 'Raleway, sans-serif' }}>
               Are you sure you want to log out?
