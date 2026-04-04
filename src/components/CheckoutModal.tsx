@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import type { CartItem } from "../pages/POSPage";
 
 interface CheckoutModalProps {
@@ -12,6 +12,7 @@ interface CheckoutModalProps {
   setTenderedAmount: (val: number | "") => void;
   change: number;
   onFinalizeCheckout: () => void;
+  isSubmitting: boolean; // NEW: Prevents duplicate submissions
 }
 
 export default function CheckoutModal({
@@ -24,7 +25,8 @@ export default function CheckoutModal({
   tenderedAmount,
   setTenderedAmount,
   change,
-  onFinalizeCheckout
+  onFinalizeCheckout,
+  isSubmitting
 }: CheckoutModalProps) {
   const [invoiceNo, setInvoiceNo] = useState("");
 
@@ -39,7 +41,7 @@ export default function CheckoutModal({
   const discountAmount = subtotal * (currentDiscount / 100);
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white shadow-xl w-full max-w-3xl p-6 md:p-8 relative flex flex-col rounded-[15px] max-h-[90vh]">
         
         <div className="flex justify-between items-center pb-4">
@@ -49,6 +51,7 @@ export default function CheckoutModal({
           <button 
             onClick={() => { onClose(); setTenderedAmount(""); }}
             className="text-gray-400 hover:text-black transition-colors focus:outline-none"
+            disabled={isSubmitting} // Lock close button while loading
           >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M6 18L18 6M6 6l12 12" />
@@ -59,7 +62,7 @@ export default function CheckoutModal({
         <div className="w-full border-t border-gray-200 mb-2 shrink-0"></div>
 
         <div className="w-full overflow-x-auto custom-scrollbar flex-1 max-h-[35vh] mb-6">
-          <table className="w-full text-center border-collapse min-w-125">
+          <table className="w-full text-center border-collapse min-w-[125px]">
             <thead>
               <tr className="border-b border-gray-200">
                 <th className="pb-3 pt-2 font-medium text-[#a29898] text-sm text-left pl-2" style={{ fontFamily: 'Raleway, sans-serif' }}>Item</th>
@@ -98,7 +101,6 @@ export default function CheckoutModal({
               <span className="text-gray-800 text-[15px] text-right">P{subtotal.toFixed(2)}</span>
             </div>
 
-            {/* FIX: Shows BOTH the percentage and the subtracted amount clearly */}
             <div className="grid grid-cols-2 pr-4 md:pr-12">
               <span className="text-gray-800 text-[15px]">Discount:</span>
               <span className="text-gray-800 text-[15px] text-right">
@@ -140,7 +142,8 @@ export default function CheckoutModal({
                       setTenderedAmount(Number(e.target.value));
                     }
                   }}
-                  className="w-full bg-transparent text-[16px] text-gray-800 outline-none font-medium"
+                  disabled={isSubmitting}
+                  className="w-full bg-transparent text-[16px] text-gray-800 outline-none font-medium disabled:opacity-50"
                   style={{ fontFamily: 'Work Sans, sans-serif' }}
                   placeholder="0.00"
                 />
@@ -150,21 +153,27 @@ export default function CheckoutModal({
             <div className="flex gap-3 w-full md:w-[240px]">
               <button 
                 onClick={() => { onClose(); setTenderedAmount(""); }}
-                className="flex-1 h-[45px] rounded-[6px] bg-[#b13e3e] hover:bg-red-800 text-white text-[14px] font-bold transition-all shadow-sm active:scale-95 focus:outline-none"
+                disabled={isSubmitting}
+                className="flex-1 h-[45px] rounded-[6px] bg-[#b13e3e] hover:bg-red-800 disabled:opacity-50 text-white text-[14px] font-bold transition-all shadow-sm active:scale-95 focus:outline-none"
                 style={{ fontFamily: 'Raleway, sans-serif' }}
               >
                 Cancel Sale
               </button>
               <button 
                 onClick={onFinalizeCheckout}
-                disabled={typeof tenderedAmount !== "number" || tenderedAmount < payableAmount}
-                className="flex-1 h-[45px] rounded-[6px] text-white disabled:opacity-90 disabled:cursor-not-allowed text-[14px] font-bold transition-all shadow-sm active:scale-95 focus:outline-none"
+                disabled={typeof tenderedAmount !== "number" || tenderedAmount < payableAmount || isSubmitting}
+                className="flex-1 h-[45px] rounded-[6px] text-white disabled:opacity-50 disabled:cursor-not-allowed text-[14px] font-bold transition-all shadow-sm active:scale-95 focus:outline-none flex items-center justify-center"
                 style={{ 
                   fontFamily: 'Raleway, sans-serif',
-                  backgroundColor: (typeof tenderedAmount === "number" && tenderedAmount >= payableAmount) ? "#8c949e" : "#8c949e"
+                  // FIX: Changes to Blue (#033860) when sufficient amount is tendered!
+                  backgroundColor: (typeof tenderedAmount === "number" && tenderedAmount >= payableAmount && !isSubmitting) ? "#033860" : "#8c949e"
                 }}
               >
-                Record Sale
+                {isSubmitting ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  "Record Sale"
+                )}
               </button>
             </div>
           </div>
