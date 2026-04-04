@@ -15,11 +15,16 @@ export default function SettingsPage() {
         <SettingsSidebar activeTab={activeTab} setActiveTab={setActiveTab} />
 
         <main className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] [&::-webkit-scrollbar-thumb]:rounded-full transition-colors">
-          <div className="max-w-250">
+          
+          {/* BUG FIX: Changed `max-w-250` to `w-full`. 
+            This allows all settings components to stretch and match the behavior of Sales/History pages. 
+          */}
+          <div className="w-full">
             {activeTab === "shop-details" && <ShopDetails />}
             {activeTab === "org-management" && <OrganizationManagement />}
             {activeTab === "inventory-config" && <InventoryConfiguration />}
           </div>
+
         </main>
       </div>
     </div>
