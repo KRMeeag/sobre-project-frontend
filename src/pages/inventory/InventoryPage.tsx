@@ -1,274 +1,136 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import axios from "axios";
+import { useEffect, useRef, useState } from "react";
 import {
-  PlusIcon,
-  TrashIcon,
   MagnifyingGlassIcon,
   PrinterIcon,
   ArrowDownTrayIcon,
+  PlusIcon,
+  TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import InventoryRow from "../components/inventory/InventoryRow";
-import InventorySidebar from "../components/inventory/InventorySidebar";
-import type { InventoryItem } from "../types";
-import { supabase } from "../lib/supabase";
-import AddItemModal from "../components/inventory/AddItemModal";
-import ConfirmDeleteModal from "../components/inventory/ConfirmDeleteModal";
-import Toast from "../components/general/Toast";
-import type { ToastType } from "../types";
-
-const API_URL = import.meta.env.VITE_API_URL;
-
-export type FilterKey =
-  | "category"
-  | "stockStatus"
-  | "supplier"
-  | "restock"
-  | "expiry";
+import InventoryRow from "../../components/inventory/InventoryRow";
+import InventorySidebar from "../../components/inventory/InventorySidebar";
+import AddItemModal from "../../components/inventory/AddItemModal";
+import ConfirmDeleteModal from "../../components/inventory/ConfirmDeleteModal";
+import Toast from "../../components/general/Toast";
+import { useInventoryData, useInventoryFilters, useSelectionManager, useExportManager, useToast  } from "../../hooks/";
 
 const InventoryPage = () => {
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // --- Refs & Toasts ---
   const mainScrollRef = useRef<HTMLElement>(null);
-  const [toast, setToast] = useState<{
-    message: string;
-    type: ToastType;
-    isVisible: boolean;
-  }>({
-    message: "",
-    type: "success",
-    isVisible: false,
-  });
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  const { toast, showToast, hideToast } = useToast();
 
-  // --- Deletion States ---
-  const [isDeleteMode, setIsDeleteMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  // --- Filter & Sort States ---
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeSort, setActiveSort] = useState<string | null>(null);
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedStockStatuses, setSelectedStockStatuses] = useState<string[]>(
-    [],
-  );
-  const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
-  const [isRestockNeeded, setIsRestockNeeded] = useState(false);
-  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
-
-  // --- Lifted States for Filters ---
-  const [existingCategories, setExistingCategories] = useState<string[]>([]);
-  const [existingSuppliers, setExistingSuppliers] = useState<string[]>([]);
-  const [loadingFilters, setLoadingFilters] = useState(true);
-
-  // --- Modal & Store States ---
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [storeId, setStoreId] = useState<string | null>(null);
-  const [filtersOpen, setFiltersOpen] = useState<Record<FilterKey, boolean>>({
-    category: false,
-    stockStatus: false,
-    supplier: false,
-    restock: false,
-    expiry: false,
-  });
 
-  const toggleFilter = (key: FilterKey) =>
-    setFiltersOpen((prev) => ({ ...prev, [key]: !prev[key] }));
-  const showToast = (message: string, type: ToastType = "success") =>
-    setToast({ message, type, isVisible: true });
+  // 2. Data Fetching
+  const {
+    inventory,
+    loading,
+    storeId,
+    userId,
+    fetchInventory,
+    fetchFilters,
+    existingCategories,
+    existingSuppliers,
+    loadingFilters,
+  } = useInventoryData();
 
+  // 3. Filtering & UI State
+  const filterState = useInventoryFilters(inventory);
+  const {
+    searchInput,
+    setSearchInput,
+    apiParams,
+    filteredInventory,
+    activeSort,
+    setActiveSort,
+    sortOrder,
+    setSortOrder,
+    filtersOpen,
+    toggleFilterAccordion,
+    selectedCategories,
+    setSelectedCategories,
+    selectedStockStatuses,
+    setSelectedStockStatuses,
+    selectedSuppliers,
+    setSelectedSuppliers,
+    isRestockNeeded,
+    setIsRestockNeeded,
+    isExpiringSoon,
+    setIsExpiringSoon,
+    resetAllFilters,
+  } = filterState;
+
+  // 4. Selections & Deletions
+  const selectionState = useSelectionManager(
+    filteredInventory,
+    () => {
+      fetchInventory(apiParams);
+      fetchFilters();
+    },
+    showToast,
+  );
+  const {
+    isDeleteMode,
+    selectedIds,
+    isConfirmModalOpen,
+    isDeleting,
+    selectedItemsData,
+    setIsDeleteMode,
+    setIsConfirmModalOpen,
+    handleToggleSelect,
+    handleSelectAll,
+    cancelDeleteMode,
+    handleBulkDelete,
+  } = selectionState;
+
+  // 5. Exports
+  const {
+    isExporting,
+    isExportMenuOpen,
+    setIsExportMenuOpen,
+    handleExportPDF,
+  } = useExportManager(userId, showToast);
+
+  // --- Side Effects ---
+
+  // Refetch when API params change (search, sort, sidebar filters)
   useEffect(() => {
-    const delayDebounceFn = setTimeout(() => setSearchQuery(searchInput), 500);
-    return () => clearTimeout(delayDebounceFn);
-  }, [searchInput]);
+    fetchInventory(apiParams);
+  }, [apiParams, fetchInventory]);
 
+  // Click outside for export menu
   useEffect(() => {
-    const fetchStoreId = async () => {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) return;
-        const userRes = await axios.get(`${API_URL}/users/${user.id}`);
-        setStoreId(userRes.data?.store_id || null);
-      } catch (err) {
-        console.error("Failed to load user store_id:", err);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        exportMenuRef.current &&
+        !exportMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsExportMenuOpen(false);
       }
     };
-    fetchStoreId();
-  }, []);
-
-  const fetchFilters = useCallback(async () => {
-    if (!storeId) return;
-    try {
-      setLoadingFilters(true);
-      const [catRes, supRes] = await Promise.all([
-        axios.get(`${API_URL}/inventory/categories`, {
-          params: { store_id: storeId },
-        }),
-        axios.get(`${API_URL}/inventory/suppliers`, {
-          params: { store_id: storeId },
-        }),
-      ]);
-      setExistingCategories(
-        catRes.data.map((c: { category: string }) => c.category),
-      );
-      setExistingSuppliers(
-        supRes.data.map((s: { supplier: string }) => s.supplier),
-      );
-    } catch (e) {
-      console.error("Failed to fetch filters:", e);
-    } finally {
-      setLoadingFilters(false);
-    }
-  }, [storeId]);
-
-  useEffect(() => {
-    fetchFilters();
-  }, [fetchFilters]);
-
-  const fetchInventory = useCallback(async () => {
-    try {
-      setLoading(true);
-      let sortByParam = undefined;
-      if (activeSort === "Price") sortByParam = "price";
-      if (activeSort === "Name") sortByParam = "name";
-      if (activeSort === "Stock Amount") sortByParam = "total_stock";
-      if (activeSort === "Expiry Date") sortByParam = "nearest_expiry";
-
-      const params: any = {
-        search: searchQuery || undefined,
-        sortBy: sortByParam,
-        order: sortOrder,
-        limit: 1000,
-      };
-
-      if (selectedCategories.length > 0) params.category = selectedCategories;
-      if (selectedSuppliers.length > 0) params.supplier = selectedSuppliers;
-      if (isRestockNeeded) params.restock_needed = true;
-      if (isExpiringSoon) params.expiry_status = true;
-
-      const res = await axios.get(`${API_URL}/inventory`, { params });
-      setInventory(
-        Array.isArray(res.data.data)
-          ? res.data.data
-          : (res.data?.inventory ?? res.data?.items ?? []),
-      );
-    } catch (err) {
-      console.error("Failed to load inventory", err);
-      showToast("Failed to load inventory data.", "error");
-    } finally {
-      setLoading(false);
-    }
-  }, [
-    searchQuery,
-    activeSort,
-    sortOrder,
-    selectedCategories,
-    selectedSuppliers,
-    isRestockNeeded,
-    isExpiringSoon,
-  ]);
-
-  useEffect(() => {
-    fetchInventory();
-  }, [fetchInventory]);
-
-  const filteredInventory = useMemo(() => {
-    if (selectedStockStatuses.length === 0) return inventory;
-    return inventory.filter((item) => {
-      let status = "In Stock";
-      if (item.total_stock === 0) status = "Out of Stock";
-      else if (item.total_stock <= 10) status = "Low Stock";
-      return selectedStockStatuses.includes(status);
-    });
-  }, [inventory, selectedStockStatuses]);
-
-  const resetAllFilters = () => {
-    setSearchInput("");
-    setSearchQuery("");
-    setActiveSort(null);
-    setSortOrder("desc");
-    setSelectedCategories([]);
-    setSelectedStockStatuses([]);
-    setSelectedSuppliers([]);
-    setIsRestockNeeded(false);
-    setIsExpiringSoon(false);
-  };
-
-  const handleToggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) newSet.delete(id);
-      else newSet.add(id);
-      return newSet;
-    });
-  };
-
-  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked) {
-      setSelectedIds(new Set(filteredInventory.map((i) => i.id)));
-    } else {
-      setSelectedIds(new Set());
-    }
-  };
-
-  const cancelDeleteMode = () => {
-    setIsDeleteMode(false);
-    setSelectedIds(new Set());
-  };
-
-  const handleBulkDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || "";
-
-      await Promise.all(
-        Array.from(selectedIds).map((id) =>
-          axios.delete(`${API_URL}/inventory/${id}?users_id=${userId}`),
-        ),
-      );
-      showToast(`Successfully deleted ${selectedIds.size} item(s).`, "success");
-      fetchInventory();
-      fetchFilters();
-      cancelDeleteMode();
-      setIsConfirmModalOpen(false);
-    } catch (err) {
-      console.error("Bulk delete failed:", err);
-      showToast("Failed to delete selected items.", "error");
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const selectedItemsData = useMemo(() => {
-    return inventory.filter((item) => selectedIds.has(item.id));
-  }, [inventory, selectedIds]);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [setIsExportMenuOpen]);
 
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
-      <Toast
-        isVisible={toast.isVisible}
-        message={toast.message}
-        type={toast.type}
-        onClose={() => setToast((prev) => ({ ...prev, isVisible: false }))}
+      <Toast 
+        isVisible={toast.isVisible} 
+        message={toast.message} 
+        type={toast.type} 
+        onClose={hideToast} 
       />
       <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 
       <div className="flex flex-1 overflow-hidden">
+        {/* SIDEBAR */}
         <InventorySidebar
           activeSort={activeSort}
           setActiveSort={setActiveSort}
           sortOrder={sortOrder}
           setSortOrder={setSortOrder}
           filtersOpen={filtersOpen}
-          toggleFilter={toggleFilter}
+          toggleFilter={toggleFilterAccordion}
           selectedCategories={selectedCategories}
           setSelectedCategories={setSelectedCategories}
           selectedStockStatuses={selectedStockStatuses}
@@ -285,10 +147,12 @@ const InventoryPage = () => {
           loadingFilters={loadingFilters}
         />
 
+        {/* MAIN CONTENT */}
         <main
           ref={mainScrollRef}
           className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] transition-colors"
         >
+          {/* Header */}
           <div className="flex justify-between items-center mb-8">
             <div>
               <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-2">
@@ -298,16 +162,46 @@ const InventoryPage = () => {
                 Manage your products and stock levels
               </p>
             </div>
+
             <div className="flex gap-3">
-              <button className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm">
-                <PrinterIcon className="w-5 h-5" /> Export to PDF
-              </button>
+              {/* Dropdown Export Wrapper */}
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  disabled={isExporting}
+                  className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isExporting ? (
+                    <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <PrinterIcon className="w-5 h-5" />
+                  )}
+                  {isExporting ? "Generating..." : "Export to PDF"}
+                </button>
+                {isExportMenuOpen && !isExporting && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                    <button
+                      onClick={() => handleExportPDF("operational")}
+                      className="w-full text-left px-4 py-3 text-sm text-[#223843] hover:bg-gray-50 transition border-b border-gray-100 font-medium"
+                    >
+                      Operational Inventory Report
+                    </button>
+                    <button
+                      onClick={() => handleExportPDF("financial")}
+                      className="w-full text-left px-4 py-3 text-sm text-[#223843] hover:bg-gray-50 transition font-medium"
+                    >
+                      Financial Inventory Value Report
+                    </button>
+                  </div>
+                )}
+              </div>
               <button className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm">
                 <ArrowDownTrayIcon className="w-5 h-5" /> Import CSV
               </button>
             </div>
           </div>
 
+          {/* Toolbar */}
           <div className="flex justify-between items-center mb-6">
             <div className="relative w-1/3">
               <input
@@ -335,8 +229,7 @@ const InventoryPage = () => {
                     disabled={selectedIds.size === 0}
                     className={`text-white px-6 rounded-lg shadow transition flex items-center gap-2 font-bold text-sm ${selectedIds.size > 0 ? "bg-[#b13e3e] hover:bg-[#8c2d2d]" : "bg-gray-400 cursor-not-allowed"}`}
                   >
-                    <TrashIcon className="w-5 h-5" />
-                    Confirm Delete{" "}
+                    <TrashIcon className="w-5 h-5" /> Confirm Delete{" "}
                     {selectedIds.size > 0 ? `(${selectedIds.size})` : ""}
                   </button>
                 </>
@@ -359,6 +252,7 @@ const InventoryPage = () => {
             </div>
           </div>
 
+          {/* Table */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <table className="w-full text-left border-collapse table-fixed transition-all">
               <thead className="bg-[#f8f9fa] text-[#033860] text-xs uppercase tracking-wider font-bold border-b border-gray-200">
@@ -414,7 +308,7 @@ const InventoryPage = () => {
                       isDeleteMode={isDeleteMode}
                       isSelected={selectedIds.has(item.id)}
                       onToggleSelect={handleToggleSelect}
-                      onUpdate={fetchInventory}
+                      onUpdate={() => fetchInventory(apiParams)}
                     />
                   ))
                 )}
@@ -431,7 +325,7 @@ const InventoryPage = () => {
         existingCategories={existingCategories}
         existingSuppliers={existingSuppliers}
         onSuccess={(itemName: string) => {
-          fetchInventory();
+          fetchInventory(apiParams);
           fetchFilters();
           showToast(`Successfully added ${itemName} to inventory.`, "success");
           mainScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
