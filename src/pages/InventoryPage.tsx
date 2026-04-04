@@ -201,7 +201,6 @@ const InventoryPage = () => {
     setIsExpiringSoon(false);
   };
 
-  // --- Deletion Logic ---
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
@@ -227,10 +226,12 @@ const InventoryPage = () => {
   const handleBulkDelete = async () => {
     setIsDeleting(true);
     try {
-      // Execute all deletes concurrently
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
+
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          axios.delete(`${API_URL}/inventory/${id}`),
+          axios.delete(`${API_URL}/inventory/${id}?users_id=${userId}`),
         ),
       );
       showToast(`Successfully deleted ${selectedIds.size} item(s).`, "success");

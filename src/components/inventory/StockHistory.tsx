@@ -9,8 +9,9 @@ import {
 } from "@heroicons/react/24/outline";
 import type { StockItem } from "../../types";
 import ConfirmDeleteStockModal from "./ConfirmDeleteStockModal";
-import StatCard from "../general/StatCard"; // <-- Imported Component
-import StockRow from "./StockRow"; // <-- Imported Component
+import StatCard from "../general/StatCard"; 
+import StockRow from "./StockRow"; 
+import { supabase } from "../../lib/supabase"; // <-- ADDED
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -102,9 +103,12 @@ const StockHistory = ({
   const handleBulkDelete = async () => {
     setIsDeleting(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
+
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          axios.delete(`${API_URL}/stock/${id}`),
+          axios.delete(`${API_URL}/stock/${id}?users_id=${userId}`),
         ),
       );
       await fetchStock();
@@ -124,7 +128,10 @@ const StockHistory = ({
       return alert("Amount and Expiry Date required.");
     setIsSavingAdd(true);
     try {
-      await axios.post(`${API_URL}/stock`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
+
+      await axios.post(`${API_URL}/stock?users_id=${userId}`, {
         inventory_id: inventoryId,
         amount: Number(addForm.amount),
         expiry_date: addForm.expiry_date,
@@ -156,7 +163,10 @@ const StockHistory = ({
       return alert("Amount and Expiry Date required.");
     setIsSavingEdit(true);
     try {
-      await axios.patch(`${API_URL}/stock/${id}`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id || "";
+
+      await axios.patch(`${API_URL}/stock/${id}?users_id=${userId}`, {
         amount: Number(editForm.amount),
         expiry_date: editForm.expiry_date,
       });
@@ -172,7 +182,6 @@ const StockHistory = ({
 
   return (
     <div className="mt-8 font-['Work_Sans']">
-      {/* REFACTORED SUMMARY CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <StatCard
           label="Total Stock"
@@ -337,7 +346,6 @@ const StockHistory = ({
                 </tr>
               )}
 
-              {/* REFACTORED STOCK ROWS */}
               {stocks.map((stock) => (
                 <StockRow
                   key={stock.id}
