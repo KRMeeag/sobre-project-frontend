@@ -32,6 +32,8 @@ const InventoryPage = () => {
 
   // --- Refs & Toasts ---
   const mainScrollRef = useRef<HTMLElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null); // Ref for dropdown click-outside
+  
   const [toast, setToast] = useState<{
     message: string;
     type: ToastType;
@@ -54,9 +56,7 @@ const InventoryPage = () => {
   const [activeSort, setActiveSort] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedStockStatuses, setSelectedStockStatuses] = useState<string[]>(
-    [],
-  );
+  const [selectedStockStatuses, setSelectedStockStatuses] = useState<string[]>([]);
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
   const [isRestockNeeded, setIsRestockNeeded] = useState(false);
   const [isExpiringSoon, setIsExpiringSoon] = useState(false);
@@ -66,7 +66,7 @@ const InventoryPage = () => {
   const [existingSuppliers, setExistingSuppliers] = useState<string[]>([]);
   const [loadingFilters, setLoadingFilters] = useState(true);
 
-  // --- Modal & Store States ---
+  // --- Modal, Store & Export States ---
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState<Record<FilterKey, boolean>>({
@@ -76,11 +76,25 @@ const InventoryPage = () => {
     restock: false,
     expiry: false,
   });
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false); // Dropdown state
 
   const toggleFilter = (key: FilterKey) =>
     setFiltersOpen((prev) => ({ ...prev, [key]: !prev[key] }));
   const showToast = (message: string, type: ToastType = "success") =>
     setToast({ message, type, isVisible: true });
+
+  // Handle click outside for export dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => setSearchQuery(searchInput), 500);
@@ -94,6 +108,9 @@ const InventoryPage = () => {
           data: { user },
         } = await supabase.auth.getUser();
         if (!user) return;
+
+        setUserId(user.id);
+
         const userRes = await axios.get(`${API_URL}/users/${user.id}`);
         setStoreId(userRes.data?.store_id || null);
       } catch (err) {
@@ -102,6 +119,42 @@ const InventoryPage = () => {
     };
     fetchStoreId();
   }, []);
+
+  // Updated to handle specific report routes
+  const handleExportPDF = async (reportType: "operational" | "financial") => {
+    if (!userId) {
+      showToast("User session not found.", "error");
+      return;
+    }
+
+    setIsExportMenuOpen(false); // Close dropdown immediately
+    setIsExporting(true);
+    
+    try {
+      const endpoint = reportType === "operational" 
+        ? "/inventory/pdfOperational" 
+        : "/inventory/pdfFinancial";
+
+      const response = await axios.get(`${API_URL}${endpoint}`, {
+        params: { user_id: userId },
+        responseType: "blob", 
+      });
+
+      const pdfBlob = new Blob([response.data], { type: "application/pdf" });
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      window.open(pdfUrl, "_blank");
+
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 10000);
+
+      showToast(`${reportType === "operational" ? "Operational" : "Financial"} PDF generated successfully.`, "success");
+    } catch (err) {
+      console.error("Failed to generate PDF:", err);
+      showToast("Failed to generate PDF report.", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const fetchFilters = useCallback(async () => {
     if (!storeId) return;
@@ -201,7 +254,6 @@ const InventoryPage = () => {
     setIsExpiringSoon(false);
   };
 
-  // --- Deletion Logic ---
   const handleToggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const newSet = new Set(prev);
@@ -227,7 +279,6 @@ const InventoryPage = () => {
   const handleBulkDelete = async () => {
     setIsDeleting(true);
     try {
-      // Execute all deletes concurrently
       await Promise.all(
         Array.from(selectedIds).map((id) =>
           axios.delete(`${API_URL}/inventory/${id}`),
@@ -298,9 +349,41 @@ const InventoryPage = () => {
               </p>
             </div>
             <div className="flex gap-3">
-              <button className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm">
-                <PrinterIcon className="w-5 h-5" /> Export to PDF
-              </button>
+              
+              {/* Dropdown Export Wrapper */}
+              <div className="relative" ref={exportMenuRef}>
+                <button
+                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  disabled={isExporting}
+                  className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isExporting ? (
+                    <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <PrinterIcon className="w-5 h-5" />
+                  )}
+                  {isExporting ? "Generating..." : "Export to PDF"}
+                </button>
+
+                {/* Dropdown Menu */}
+                {isExportMenuOpen && !isExporting && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 z-50 overflow-hidden">
+                    <button
+                      onClick={() => handleExportPDF("operational")}
+                      className="w-full text-left px-4 py-3 text-sm text-[#223843] hover:bg-gray-50 transition border-b border-gray-100 font-medium"
+                    >
+                      Operational Inventory Report
+                    </button>
+                    <button
+                      onClick={() => handleExportPDF("financial")}
+                      className="w-full text-left px-4 py-3 text-sm text-[#223843] hover:bg-gray-50 transition font-medium"
+                    >
+                      Financial Inventory Value Report
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm">
                 <ArrowDownTrayIcon className="w-5 h-5" /> Import CSV
               </button>
