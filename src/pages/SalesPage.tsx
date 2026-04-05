@@ -50,7 +50,6 @@ export default function SalesPage() {
   const [itemsAmount, setItemsAmount] = useState("");
   const [discountFilter, setDiscountFilter] = useState("");
 
-  // --- NEW: Individual Timeframe States for Summary Cards ---
   const [revenueRange, setRevenueRange] = useState("30days");
   const [profitRange, setProfitRange] = useState("today");
   const [costRange, setCostRange] = useState("today");
@@ -102,7 +101,6 @@ export default function SalesPage() {
     });
   }, [receipts, searchQuery, startDate, endDate, startTime, endTime, itemsAmount, discountFilter]);
 
-  // --- HELPER: Check if a date falls within the selected range ---
   const isWithinRange = (dateString: string, range: string) => {
     if (range === "all") return true;
     
@@ -124,7 +122,6 @@ export default function SalesPage() {
     return true;
   };
 
-  // --- DYNAMIC INDIVIDUAL SUMMARY CALCULATIONS ---
   const metrics = useMemo(() => {
     let revenue = 0;
     let profit = 0;
@@ -163,37 +160,20 @@ export default function SalesPage() {
           <p className="text-gray-500 text-sm">Monitor your store's performance and transactions</p>
         </div>
 
-        {/* --- DYNAMIC SUMMARY CARDS --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
-          <SummaryCard 
-            title="Revenue" 
-            value={formatCurrency(metrics.revenue)} 
-            range={revenueRange} 
-            onRangeChange={setRevenueRange} 
-          />
-          <SummaryCard 
-            title="Net Profit" 
-            value={formatCurrency(metrics.profit)} 
-            range={profitRange} 
-            onRangeChange={setProfitRange} 
-          />
-          <SummaryCard 
-            title="Total Cost" 
-            value={formatCurrency(metrics.cost)} 
-            range={costRange} 
-            onRangeChange={setCostRange} 
-          />
-          <SummaryCard 
-            title="Items Sold" 
-            value={metrics.items.toString()} 
-            range={itemsRange} 
-            onRangeChange={setItemsRange} 
-          />
+          <SummaryCard title="Revenue" value={formatCurrency(metrics.revenue)} range={revenueRange} onRangeChange={setRevenueRange} />
+          <SummaryCard title="Net Profit" value={formatCurrency(metrics.profit)} range={profitRange} onRangeChange={setProfitRange} />
+          <SummaryCard title="Total Cost" value={formatCurrency(metrics.cost)} range={costRange} onRangeChange={setCostRange} />
+          <SummaryCard title="Items Sold" value={metrics.items.toString()} range={itemsRange} onRangeChange={setItemsRange} />
         </div>
 
+        {/* --- RESTRUCTURED FILTER SECTION TO MATCH HISTORY PAGE --- */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0 w-full">
+          
+          {/* LEFT GROUP: Search, Time, and Date grouped together */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full sm:w-72 h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            {/* Search width adjusted to sm:w-64 to match HistoryPage */}
+            <div className="relative w-full sm:w-64 h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
               <input 
                 type="text" 
                 placeholder="Search invoice number..." 
@@ -215,25 +195,28 @@ export default function SalesPage() {
             </div>
           </div>
 
+          {/* RIGHT GROUP: Items Amount and Discount */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative h-11 w-full sm:w-44 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            {/* Width adjusted to sm:w-40 to match HistoryPage */}
+            <div className="relative h-11 w-full sm:w-40 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+              {/* Added CSS classes to hide number spinners for perfect alignment */}
               <input 
                 type="number" 
                 placeholder="Item Amount" 
                 value={itemsAmount} 
                 onChange={(e) => setItemsAmount(e.target.value)} 
-                className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10" 
+                className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10 appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
               />
               <HashtagIcon className="w-4 h-4 absolute right-3 pointer-events-none text-gray-400" />
             </div>
 
-            <div className="relative h-11 w-full sm:w-44 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            <div className="relative h-11 w-full sm:w-40 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
               <input 
                 type="number" 
                 placeholder="Discount" 
                 value={discountFilter} 
                 onChange={(e) => setDiscountFilter(e.target.value)} 
-                className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10" 
+                className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10 appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" 
               />
               <span className="absolute right-3 pointer-events-none text-gray-400 font-bold text-[14px]">%</span>
             </div>
@@ -289,7 +272,6 @@ export default function SalesPage() {
   );
 }
 
-// --- UPDATED SUMMARY CARD WITH DROPDOWN ---
 interface SummaryCardProps {
   title: string;
   value: string;

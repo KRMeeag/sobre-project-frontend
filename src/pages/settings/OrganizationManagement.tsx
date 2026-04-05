@@ -114,11 +114,22 @@ export default function OrganizationManagement() {
     }
   };
 
+  // --- UPDATED: Prevent self-editing for Main Manager ---
   const handleEditClick = (targetUser: OrgUser) => {
-    if (targetUser.role.toLowerCase() === 'main manager' && currentUserRole.toLowerCase() !== 'main manager') {
+    const isTargetMainManager = targetUser.role.toLowerCase() === 'main manager';
+    const isSelf = targetUser.auth_user_id === currentUserId;
+
+    if (isTargetMainManager && currentUserRole.toLowerCase() !== 'main manager') {
       alert("You do not have permission to edit the Main Manager's role.");
       return;
     }
+
+    // Failsafe: Prevent Main Manager from editing their own role
+    if (isTargetMainManager && isSelf) {
+      alert("Action denied: As the Main Manager, you cannot edit your own role to prevent a power vacuum.");
+      return;
+    }
+
     setEditingUserId(targetUser.auth_user_id);
     setEditingRole(targetUser.role);
   };
@@ -219,8 +230,13 @@ export default function OrganizationManagement() {
                 filteredUsers.map((u, index) => {
                   const isEditingThisRow = editingUserId === u.auth_user_id;
                   const hasChanges = editingRole.toLowerCase() !== u.role.toLowerCase();
+                  
+                  // --- UPDATED: Hiding logic for the edit button ---
                   const isMainManager = u.role.toLowerCase() === 'main manager';
-                  const canEdit = !(isMainManager && currentUserRole.toLowerCase() !== 'main manager');
+                  const isSelf = u.auth_user_id === currentUserId; 
+                  
+                  // canEdit is false if a lower user tries to edit main manager, OR if main manager tries to edit self
+                  const canEdit = !(isMainManager && currentUserRole.toLowerCase() !== 'main manager') && !(isMainManager && isSelf);
 
                   return (
                     <tr 
@@ -251,7 +267,7 @@ export default function OrganizationManagement() {
                         </div>
                       </td>
 
-                      <td className="p-4 text-center text-gray-600 truncate max-w-[200px]">{u.email}</td>
+                      <td className="p-4 text-center text-gray-600 truncate max-w-50">{u.email}</td>
                       
                       <td className="p-4 text-center">
                         {isEditingThisRow ? (
@@ -314,9 +330,15 @@ export default function OrganizationManagement() {
 
 function StatusPill({ status }: { status: string }) {
   const isActive = status.toLowerCase() === 'active';
+  
+  // Matches Inventory "In Stock" (Green) and "Out of Stock" (Red)
+  const colorClass = isActive 
+    ? "bg-[#daf4a6] text-[#4b6618]" 
+    : "bg-[#ffccc7] text-[#8c2d2d]";
+
   return (
-    <div className={`px-3 py-1 inline-flex items-center justify-center rounded-full text-xs font-bold ${isActive ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+    <span className={`px-3 py-1 inline-flex items-center justify-center rounded-full text-xs font-bold shadow-sm font-['Work_Sans'] ${colorClass}`}>
       {isActive ? "Active" : "Inactive"}
-    </div>
+    </span>
   );
 }

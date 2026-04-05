@@ -44,7 +44,7 @@ export default function DeleteUserModal({ isOpen, onClose, users, onConfirm, loa
             Are you sure you want to delete the following users:
           </h3>
 
-          <div className="flex flex-col gap-6 max-h-75 overflow-y-auto px-4">
+          <div className="flex flex-col gap-6 max-h-75 noverflow-y-auto px-4">
             {users.map((u) => (
               <div key={u.auth_user_id} className="grid grid-cols-[1fr_2fr_1fr] items-center gap-4">
                 
