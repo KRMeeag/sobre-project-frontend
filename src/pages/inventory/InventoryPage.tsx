@@ -21,6 +21,7 @@ import {
   useSelectionManager,
   useExportManager,
   useToast,
+  useCSVAPI,
 } from "../../hooks/";
 
 const InventoryPage = () => {
@@ -121,6 +122,16 @@ const InventoryPage = () => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [setIsExportMenuOpen]);
+
+  // 6. CSV Import
+  const { submitImport } = useCSVAPI({
+    onSuccess: () => {
+      fetchInventory(apiParams);
+      fetchFilters();
+      setIsImportModalOpen(false); // Close modal on success
+    },
+    showToast,
+  });
 
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
@@ -357,17 +368,9 @@ const InventoryPage = () => {
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
         existingInventory={inventory}
-        existingCategories={existingCategories} // Add this
-        existingSuppliers={existingSuppliers} // Add this
-        onConfirm={async (updates, newItems, supplier) => {
-          // supplier added
-          console.log("Supplier:", supplier);
-          console.log("Updates:", updates);
-          console.log("New:", newItems);
-          await new Promise((resolve) => setTimeout(resolve, 1500));
-          showToast(`Successfully imported items.`, "success");
-          fetchInventory(apiParams);
-        }}
+        existingCategories={existingCategories}
+        existingSuppliers={existingSuppliers}
+        onConfirm={submitImport} // <-- Passes the perfectly typed async function
       />
     </div>
   );

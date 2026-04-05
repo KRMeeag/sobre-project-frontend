@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   XMarkIcon,
   DocumentArrowUpIcon,
@@ -36,7 +36,6 @@ export default function ImportWizardModal({
   existingSuppliers,
   onConfirm,
 }: ImportWizardModalProps) {
-  // 1. Hooks
   const {
     isParsing,
     globalError,
@@ -61,7 +60,6 @@ export default function ImportWizardModal({
     clearState,
   } = useCSVReviewState(errors, updates, newItems, existingInventory);
 
-  // 2. Setup State
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [selectedSupplier, setSelectedSupplier] = useState<string>("");
   const [dragActive, setDragActive] = useState(false);
@@ -72,7 +70,6 @@ export default function ImportWizardModal({
 
   if (!isOpen) return null;
 
-  // 3. Derived State
   const hasParsedData =
     localErrors.length > 0 ||
     localUpdates.length > 0 ||
@@ -86,7 +83,6 @@ export default function ImportWizardModal({
   const isConfirmDisabled =
     !hasValidImportData || isSubmitting || !isNewItemsValid;
 
-  // 4. Handlers
   const handleFileChange = (file?: File) => {
     setGlobalError(null);
     if (!file) return;
@@ -139,10 +135,12 @@ export default function ImportWizardModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm font-['Work_Sans'] p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm font-['Work_Sans'] p-4 overflow-y-auto">
+      {/* 2. REMOVED h-[85vh] and overflow-hidden. ADDED my-auto and relative */}
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-auto relative flex flex-col animate-in zoom-in-95 duration-200">
+        
         {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-[#f8f9fa] shrink-0">
+        <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-[#f8f9fa] shrink-0 rounded-t-xl">
           <h2 className="text-2xl font-bold text-[#004385] flex items-center gap-2">
             <DocumentArrowUpIcon className="w-6 h-6" /> Import CSV
           </h2>
@@ -162,10 +160,12 @@ export default function ImportWizardModal({
         )}
 
         {/* Body */}
-        <div className="flex-1 overflow-hidden flex flex-col bg-gray-50">
+        {/* 3. REMOVED overflow-hidden here */}
+        <div className="flex-1 flex flex-col bg-gray-50">
+          
           {/* STEP 1: Upload */}
           {!hasParsedData && !isParsing && (
-            <div className="flex-1 overflow-y-auto p-10 flex flex-col items-center justify-center">
+            <div className="p-10 flex flex-col items-center justify-center">
               <div className="w-full max-w-lg bg-white p-8 rounded-xl shadow-sm border border-gray-200">
                 <div className="mb-6 z-20 relative">
                   <ComboboxInput
@@ -240,7 +240,7 @@ export default function ImportWizardModal({
 
           {/* STEP 2: Spinner */}
           {isParsing && (
-            <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="p-20 flex flex-col items-center justify-center">
               <div className="w-10 h-10 border-4 border-gray-200 border-t-[#087CA7] rounded-full animate-spin mb-4"></div>
               <p className="text-gray-600 font-medium">Validating Data...</p>
             </div>
@@ -248,7 +248,7 @@ export default function ImportWizardModal({
 
           {/* STEP 3: Review */}
           {hasParsedData && !isParsing && (
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col">
               {/* Tab Nav */}
               <div className="flex border-b border-gray-200 bg-white px-6 shrink-0">
                 <button
@@ -298,7 +298,8 @@ export default function ImportWizardModal({
               </div>
 
               {/* Tab Contents */}
-              <div className="flex-1 overflow-y-auto p-6">
+              {/* 4. REMOVED overflow-y-auto here to allow breakout */}
+              <div className="p-6">
                 {activeTab === "summary" && (
                   <div className="grid grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-xl border border-red-200 flex flex-col items-center">
@@ -424,7 +425,7 @@ export default function ImportWizardModal({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-white flex justify-between shrink-0">
+        <div className="p-6 border-t border-gray-200 bg-white flex justify-between shrink-0 rounded-b-xl">
           <button
             onClick={() => {
               if (hasParsedData || pendingFile) {
@@ -434,7 +435,7 @@ export default function ImportWizardModal({
                 setActiveTab("summary");
               } else handleClose();
             }}
-            className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-lg"
+            className="px-6 py-2.5 text-gray-600 font-bold hover:bg-gray-100 rounded-lg transition"
           >
             {hasParsedData || pendingFile ? "Back" : "Cancel"}
           </button>
@@ -442,7 +443,7 @@ export default function ImportWizardModal({
             <button
               onClick={handleConfirm}
               disabled={isConfirmDisabled}
-              className={`px-8 py-2.5 rounded-lg shadow font-bold flex items-center gap-2 ${isConfirmDisabled ? "bg-gray-300 text-gray-500 shadow-none" : "bg-[#004385] text-white hover:bg-[#003060]"}`}
+              className={`px-8 py-2.5 rounded-lg shadow font-bold flex items-center gap-2 transition ${isConfirmDisabled ? "bg-gray-300 text-gray-500 shadow-none" : "bg-[#004385] text-white hover:bg-[#003060]"}`}
             >
               {isSubmitting && (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>

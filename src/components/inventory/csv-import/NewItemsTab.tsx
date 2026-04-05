@@ -1,4 +1,3 @@
-import React from "react";
 import {
   InformationCircleIcon,
   ExclamationTriangleIcon,
@@ -31,9 +30,9 @@ export default function NewItemsTab({
           Category and Selling Price for these new products before confirming.
         </p>
       </div>
-      <div className="overflow-visible">
-        <table className="w-full text-left table-fixed border-collapse">
-          <thead className="bg-gray-50 text-gray-600 text-[10px] uppercase font-bold border-b border-gray-200">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-visible">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-[#f8f9fa] text-[#033860] uppercase tracking-wider font-bold border-b border-gray-200">
             <tr>
               <th className="p-3 text-left w-[25%]">Goods</th>
               <th className="p-3 text-center w-[10%]">Stock</th>
@@ -73,7 +72,7 @@ export default function NewItemsTab({
                 return (
                   <tr
                     key={i}
-                    className="border-b border-gray-100 last:border-0 relative"
+                    className="hover:bg-gray-50 transition-colors relative focus-within:z-50"
                     style={{ zIndex: 9999 - i }}
                   >
                     <td
@@ -86,7 +85,10 @@ export default function NewItemsTab({
                     <td className="p-3 text-center">₱{item.cost.toFixed(2)}</td>
 
                     <td className="p-3 text-center text-gray-600">
-{item.expiryDate ? formatDate(item.expiryDate, "long") : "N/A"}                    </td>
+                      {item.expiryDate
+                        ? formatDate(item.expiryDate, "long")
+                        : "N/A"}{" "}
+                    </td>
 
                     <td className={`p-2 ${categoryBg} align-top`}>
                       <ComboboxInput
