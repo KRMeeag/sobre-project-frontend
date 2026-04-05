@@ -7,7 +7,7 @@ export interface InventoryItem {
   price: number;
   discount: number;
   suggested_order: number;
-  supplier: string;
+  primary_supplier: string;
   average_per_day: number;
   sales_last_7_days: number;
   reorder_needed: boolean;
@@ -22,10 +22,11 @@ export interface InventoryItem {
 
 export interface StockItem {
   id: string;
-  expiry_date: string;
+  expiry_date?: string;
   amount: number;
   barcode: string;
   restock_date: string;
+  supplier: string;
 }
 
 export type FilterKey = "category" | "stockStatus" | "supplier" | "restock" | "expiry";

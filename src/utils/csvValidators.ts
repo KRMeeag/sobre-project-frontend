@@ -29,20 +29,3 @@ export const getTomorrowDateString = () => {
 export const isValidProductName = (str: string) => {
   return /^[a-zA-Z0-9\s\-_.(),&'%!"]+$/.test(str);
 };
-
-// Add this to the bottom of src/utils/csvValidators.ts
-
-export const formatReadableDate = (dateString?: string) => {
-  if (!dateString) return "N/A";
-  
-  // Appending 'T00:00:00' ensures the date doesn't shift backward a day due to timezone offset
-  const date = new Date(`${dateString}T00:00:00`); 
-  
-  if (isNaN(date.getTime())) return "Invalid Date";
-
-  return date.toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long", // "long" = February, "short" = Feb
-    day: "numeric",
-  });
-};
