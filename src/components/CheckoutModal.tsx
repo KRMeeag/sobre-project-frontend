@@ -30,7 +30,7 @@ export default function CheckoutModal({
   
   if (!isOpen) return null;
 
-  const discountAmount = subtotal * (currentDiscount / 100);
+  const discountAmount = subtotal - payableAmount;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -64,43 +64,39 @@ export default function CheckoutModal({
               </tr>
             </thead>
             <tbody>
-              {cart.map((item) => (
-                <tr key={item.productId} className="border-b border-gray-100 last:border-b-0">
-                  <td className="py-4 text-left pl-2">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-[#b4b4b4] shrink-0 flex items-center justify-center overflow-hidden text-[10px] text-white">
-                        Img
+              {cart.map((item) => {
+                const itemDiscountedPrice = item.price - (item.price * ((item.discount || 0) / 100));
+
+                return (
+                  <tr key={item.productId} className="border-b border-gray-100 last:border-b-0">
+                    <td className="py-4 text-left pl-2">
+                      <div className="flex items-center gap-4">
+                        {/* UPDATED: Checkout Thumbnail Image with Letter Fallback */}
+                        <div className="w-10 h-10 rounded-full bg-white border border-gray-200 shrink-0 flex items-center justify-center overflow-hidden">
+                          {item.photo ? (
+                            <img src={item.photo} alt={item.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-gray-400 text-lg font-bold uppercase" style={{ fontFamily: "Raleway, sans-serif" }}>
+                              {item.name.charAt(0)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-bold text-[#223843] text-sm md:text-base" style={{ fontFamily: 'Raleway, sans-serif' }}>{item.name}</span>
                       </div>
-                      <span className="font-bold text-[#223843] text-sm md:text-base" style={{ fontFamily: 'Raleway, sans-serif' }}>{item.name}</span>
-                    </div>
-                  </td>
-                  
-                  {/* NEW: Checkout UI for displaying individual discounts */}
-                  <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                    {item.discount > 0 ? (
-                      <div className="flex flex-col items-center justify-center">
-                        <span className="line-through text-gray-400 text-[11px]">P{Number(item.price).toFixed(2)}</span>
-                        <span className="text-[#033860] font-bold">P{(item.price - (item.price * (item.discount / 100))).toFixed(2)}</span>
-                      </div>
-                    ) : (
-                      `P${Number(item.price).toFixed(2)}`
-                    )}
-                  </td>
-                  
-                  <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>{item.totalQuantity}</td>
-                  
-                  <td className="py-4 text-gray-500 text-sm font-medium text-right pr-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
-                    {item.discount > 0 ? (
-                      <div className="flex flex-col items-end justify-center">
-                        <span className="line-through text-gray-400 text-[11px]">P{(item.price * item.totalQuantity).toFixed(2)}</span>
-                        <span className="text-[#033860] font-bold">P{((item.price - (item.price * (item.discount / 100))) * item.totalQuantity).toFixed(2)}</span>
-                      </div>
-                    ) : (
-                      `P${(item.price * item.totalQuantity).toFixed(2)}`
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    
+                    <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                      P{itemDiscountedPrice.toFixed(2)}
+                    </td>
+                    
+                    <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>{item.totalQuantity}</td>
+                    
+                    <td className="py-4 text-gray-500 text-sm font-medium text-right pr-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                      P{(itemDiscountedPrice * item.totalQuantity).toFixed(2)}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -118,7 +114,7 @@ export default function CheckoutModal({
             <div className="grid grid-cols-2 pr-4 md:pr-12">
               <span className="text-gray-800 text-[15px]">Discount:</span>
               <span className="text-gray-800 text-[15px] text-right">
-                {currentDiscount || 0}% (-P{discountAmount.toFixed(2)})
+                -P{discountAmount.toFixed(2)} {currentDiscount > 0 ? `(+${currentDiscount}%)` : ""}
               </span>
             </div>
 
