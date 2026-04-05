@@ -208,6 +208,7 @@ const InventoryItemDetails = ({
         </div>
 
         {/* REFACTORED 3x4 GRID USING DETAILFIELD COMPONENT */}
+        {/* REFACTORED 3x4 GRID USING DETAILFIELD COMPONENT */}
         <div className="flex-1 grid grid-cols-4 grid-rows-3 gap-x-4 gap-y-2 h-full content-between">
           <DetailField
             label="Display Name"
@@ -215,14 +216,14 @@ const InventoryItemDetails = ({
             value={formData.name}
             onChange={handleChange}
             isEditing={isEditing}
-            displayValue={formData.name}
+            displayValue={item.name || "Unnamed Item"}
             viewClassName="text-[#223843]"
           />
           <DetailField
             label="SKU"
             isEditing={isEditing}
             isReadOnly
-            displayValue={item.sku}
+            displayValue={item.sku || "N/A"}
             viewClassName={`font-mono bg-gray-50 border-gray-100 ${readOnlyClass}`}
           />
           <DetailField
@@ -231,14 +232,14 @@ const InventoryItemDetails = ({
             value={formData.category}
             onChange={handleChange}
             isEditing={isEditing}
-            displayValue={formData.category}
+            displayValue={item.category || "Uncategorized"}
             viewClassName="text-[#223843]"
           />
           <DetailField
             label="Created At"
             isEditing={isEditing}
             isReadOnly
-            displayValue={formatDate(item.created_at)}
+            displayValue={formatDate(item.created_at)} // Date util already handles null -> "N/A"
             viewClassName={`bg-gray-100/50 text-gray-600 ${readOnlyClass}`}
           />
 
@@ -248,7 +249,7 @@ const InventoryItemDetails = ({
             value={formData.supplier}
             onChange={handleChange}
             isEditing={isEditing}
-            displayValue={formData.supplier}
+            displayValue={item.supplier || "No Supplier"}
             viewClassName="text-[#223843]"
           />
           <DetailField
@@ -260,7 +261,7 @@ const InventoryItemDetails = ({
             value={formData.price}
             onChange={handleChange}
             isEditing={isEditing}
-            displayValue={`₱${Number(formData.price).toFixed(2)}`}
+            displayValue={`₱${Number(item.price || 0).toFixed(2)}`}
             viewClassName="text-[#223843]"
           />
           <DetailField
@@ -272,7 +273,7 @@ const InventoryItemDetails = ({
             value={formData.cost}
             onChange={handleChange}
             isEditing={isEditing}
-            displayValue={`₱${Number(formData.cost).toFixed(2)}`}
+            displayValue={`₱${Number(item.cost || 0).toFixed(2)}`}
             viewClassName="text-[#223843]"
           />
           <DetailField
@@ -285,7 +286,7 @@ const InventoryItemDetails = ({
             value={formData.discount}
             onChange={handleChange}
             isEditing={isEditing}
-            displayValue={`${formData.discount}%`}
+            displayValue={`${Number(item.discount || 0)}%`}
             viewClassName="text-[#223843]"
           />
 
@@ -293,28 +294,28 @@ const InventoryItemDetails = ({
             label="Avg Per Day"
             isEditing={isEditing}
             isReadOnly
-            displayValue={item.average_per_day ?? 0}
+            displayValue={Number(item.average_per_day || 0).toFixed(1)} // Safely format to 1 decimal
             viewClassName={`font-bold text-[#087CA7] bg-blue-50/50 border-blue-100/50 ${readOnlyClass}`}
           />
           <DetailField
             label="Sales Today"
             isEditing={isEditing}
             isReadOnly
-            displayValue={item.sales_today ?? 0}
+            displayValue={item.sales_today || 0}
             viewClassName={`font-bold text-[#087CA7] bg-blue-50/50 border-blue-100/50 ${readOnlyClass}`}
           />
           <DetailField
             label="Total Stock"
             isEditing={isEditing}
             isReadOnly
-            displayValue={item.total_stock}
-            viewClassName={`font-bold ${item.total_stock > 0 ? "text-[#2aa564] bg-green-50/50 border-green-100/50" : "text-[#b13e3e] bg-red-50/50 border-red-100/50"} ${readOnlyClass}`}
+            displayValue={item.total_stock || 0}
+            viewClassName={`font-bold ${(item.total_stock || 0) > 0 ? "text-[#2aa564] bg-green-50/50 border-green-100/50" : "text-[#b13e3e] bg-red-50/50 border-red-100/50"} ${readOnlyClass}`}
           />
           <DetailField
             label="Suggested Order"
             isEditing={isEditing}
             isReadOnly
-            displayValue={item.suggested_order ?? 0}
+            displayValue={item.suggested_order || 0}
             viewClassName={`font-bold text-[#9c7e16] bg-yellow-50/50 border-yellow-100/50 ${readOnlyClass}`}
           />
         </div>

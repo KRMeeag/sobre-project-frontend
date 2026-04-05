@@ -68,8 +68,8 @@ export default function StockRow({
             className="w-20 border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#e6d04f]"
           />
         ) : (
-          <span className={stock.amount === 0 ? "text-gray-400" : ""}>
-            {stock.amount}
+          <span className={(stock.amount || 0) === 0 ? "text-gray-400" : ""}>
+            {stock.amount || 0}
           </span>
         )}
       </td>

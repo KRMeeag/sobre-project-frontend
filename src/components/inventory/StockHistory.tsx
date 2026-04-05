@@ -76,10 +76,13 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
     let earliestExpiryDate: Date | null = null;
 
     stocks.forEach((stock) => {
-      totalAmount += stock.amount;
+      // Safe casting to number, defaulting to 0
+      const safeAmount = Number(stock.amount || 0);
+      totalAmount += safeAmount;
+
       if (stock.expiry_date) {
         const expDate = new Date(stock.expiry_date);
-        if (expDate < today) expiredCount += stock.amount;
+        if (expDate < today) expiredCount += safeAmount;
         else if (!earliestExpiryDate || expDate < earliestExpiryDate)
           earliestExpiryDate = expDate;
       }

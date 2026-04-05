@@ -56,35 +56,37 @@ const InventoryRow = ({
             {item.photo ? (
               <img
                 src={item.photo}
-                alt={item.name}
+                alt={item.name || "Item"}
                 className="w-full h-full object-cover"
               />
             ) : (
               <span className="text-xs font-bold text-gray-500">
-                {item.name.charAt(0)}
+                {/* Fallback to '?' if name is null so charAt doesn't crash */}
+                {(item.name || "?").charAt(0).toUpperCase()}
               </span>
             )}
           </div>
         </td>
         <td className="p-2 font-medium text-[#223843] text-center truncate">
-          {item.name}
+          {item.name || "Unnamed Item"}
         </td>
         <td className="p-2 text-gray-600 text-center font-mono text-xs">
-          {item.sku}
+          {item.sku || "N/A"}
         </td>
         <td className="p-2 text-[#223843] text-center font-medium">
-          P{item.price.toFixed(2)}
+          {/* CRITICAL FIX: Safe number casting before toFixed */}₱
+          {Number(item.price || 0).toFixed(2)}
         </td>
         <td className="p-2 text-gray-600 text-center truncate">
           {item.nearest_expiry ? formatDate(item.nearest_expiry) : "N/A"}
         </td>
         <td className="p-1 text-center">
           <div className="flex justify-center">
-            <StatusBadge stock={item.total_stock} />
+            <StatusBadge stock={item.total_stock || 0} />
           </div>
         </td>
-        <td className="p-2 text-center font-bold">{item.total_stock}</td>
-        <td className="p-2 text-center">{item.suggested_order}</td>
+        <td className="p-2 text-center font-bold">{item.total_stock || 0}</td>
+        <td className="p-2 text-center">{item.suggested_order || 0}</td>
 
         {/* Conditional Action Column */}
         {!isDeleteMode && (
