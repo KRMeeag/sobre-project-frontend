@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { DocumentCheckIcon } from "@heroicons/react/24/solid";
-import { supabase } from "../../lib/supabase"; // Import Supabase to get the real user
+import { supabase } from "../../lib/supabase";
+import { getAllProvinces, getCities, getBarangays, type LocationNode } from "../../lib/philippines";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 export default function ShopDetails() {
-  // 1. State for the original data (to compare against)
   const [initialData, setInitialData] = useState({
     store_name: "",
     building: "",
@@ -16,18 +16,18 @@ export default function ShopDetails() {
     province: "",
   });
 
-  // 2. State for the current form inputs
-  const [authUserId, setAuthUserId] = useState<string | null>(null); // <-- Add this
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ ...initialData });
-  const [storeId, setStoreId] = useState<string | null>(null); // Track the store's primary key
+  const [storeId, setStoreId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  
+  // NEW: State to hold the fetched barangays for the dropdown
+  const [barangaysList, setBarangaysList] = useState<LocationNode[]>([]);
 
-  // 3. Fetch Data on Mount
   useEffect(() => {
     const fetchStoreDetails = async () => {
       try {
-        // Fetch the real, logged-in user from Supabase
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) {
@@ -36,12 +36,11 @@ export default function ShopDetails() {
           return;
         }
         setAuthUserId(user.id); 
-        // Fetch the store data using the new backend endpoint
         const res = await axios.get(`${API_URL}/store/user/${user.id}`);
         const store = res.data; 
         
         if (store) {
-          setStoreId(store.id); // Save the actual store ID for when we need to update
+          setStoreId(store.id);
           const fetchedData = {
             store_name: store.store_name || "",
             building: store.building || "",
@@ -52,9 +51,28 @@ export default function ShopDetails() {
           };
           setInitialData(fetchedData);
           setFormData(fetchedData);
+
+          // NEW: Resolve the PSGC codes from the names to fetch Barangays
+          if (store.province && store.city) {
+            try {
+              const provinces = await getAllProvinces();
+              const province = provinces.find(p => p.name.toLowerCase() === store.province.toLowerCase());
+              
+              if (province) {
+                const cities = await getCities(province.code);
+                const city = cities.find(c => c.name.toLowerCase() === store.city.toLowerCase());
+                
+                if (city) {
+                  const barangays = await getBarangays(city.code);
+                  setBarangaysList(barangays);
+                }
+              }
+            } catch (apiErr) {
+              console.error("Failed to load barangays for dropdown:", apiErr);
+            }
+          }
         }
       } catch (err: any) {
-        // Suppress the 404 if it's just a test account without a store linked yet
         if (err.response?.status !== 404) {
           console.error("Failed to load store details:", err);
         }
@@ -66,7 +84,6 @@ export default function ShopDetails() {
     fetchStoreDetails();
   }, []);
 
-  // 4. Logic to check if any text has changed
   const hasChanged = JSON.stringify(initialData) !== JSON.stringify(formData);
 
   const handleChange = (field: string, value: string) => {
@@ -74,18 +91,15 @@ export default function ShopDetails() {
   };
 
   const handleSave = async () => {
-    // Only proceed if changes exist and we have a valid store ID
     if (!hasChanged || !storeId) return;
     setSaving(true);
     
     try {
-      // Update the specific store directly using its ID
       await axios.put(`${API_URL}/store/${storeId}`, {
         ...formData,
         auth_user_id: authUserId 
       });
       
-      // Update the initial data to match the newly saved data (grays out the button again)
       setInitialData(formData);
     } catch (err) {
       console.error("Failed to save store details:", err);
@@ -100,21 +114,14 @@ export default function ShopDetails() {
   }
 
   return (
-    // Design matching is applied within this component's container
     <div className="w-full animate-in fade-in duration-300">
-      
-      {/* This white card matches the appearance in image_1.png 
-        and is centered by the parent SettingsPage.tsx layout.
-      */}
       <div className="bg-white rounded-xl shadow-sm p-10 max-w-212.5 mx-auto">
 
-        {/* Header Section */}
         <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
           <h1 className="text-[32px] font-bold font-['Raleway'] text-slate-800">
             Shop Details
           </h1>
           
-          {/* Dynamic Save Button - Styling and logic matching is applied */}
           <button 
             onClick={handleSave}
             disabled={!hasChanged || saving || !storeId}
@@ -129,14 +136,12 @@ export default function ShopDetails() {
           </button>
         </div>
 
-        {/* Warning if no store is linked */}
         {!storeId && !loading && (
           <div className="mb-6 p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded text-sm">
             No store profile found for this user. Please ensure your account is properly linked to a store.
           </div>
         )}
 
-        {/* Form Section */}
         <div className="max-w-175">
           <h3 className="text-[18px] font-bold text-gray-500 mb-8 font-['Work_Sans']">
             Location
@@ -161,42 +166,52 @@ export default function ShopDetails() {
               value={formData.street}
               onChange={(val) => handleChange("street", val)}
             />
-            <InputField 
+            
+            {/* UPDATED: Barangay is now a SelectField */}
+            <SelectField 
               label="Barangay" 
-              placeholder="De La Cruz" 
+              defaultOption={barangaysList.length > 0 ? "Select Barangay" : "Loading Barangays..."}
               value={formData.barangay}
               onChange={(val) => handleChange("barangay", val)}
+              options={barangaysList}
+              disabled={barangaysList.length === 0}
             />
+
+            {/* LOCKED CITY */}
             <InputField 
               label="City" 
               placeholder="Manila" 
               value={formData.city}
               onChange={(val) => handleChange("city", val)}
+              disabled={true} 
             />
+            {/* LOCKED PROVINCE */}
             <InputField 
               label="Province" 
               placeholder="NCR" 
               value={formData.province}
               onChange={(val) => handleChange("province", val)}
+              disabled={true}
             />
           </div>
         </div>
 
-      </div> {/* End white card */}
-
+      </div> 
     </div>
   );
 }
 
-// Updated Input component to handle real-time value changes and match design
+// --- HELPER COMPONENTS ---
+
 interface InputFieldProps {
   label: string;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
+  disabled?: boolean; 
 }
 
-function InputField({ label, placeholder, value, onChange }: InputFieldProps) {
+function InputField({ label, placeholder, value, onChange, disabled = false }: InputFieldProps) {
   return (
     <div className="flex items-center">
       <label className="w-45 text-[15px] font-medium text-gray-600 shrink-0 font-['Work_Sans']">
@@ -207,8 +222,51 @@ function InputField({ label, placeholder, value, onChange }: InputFieldProps) {
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 bg-transparent border border-gray-300 rounded-lg px-4 py-2.5 text-[14px] text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 transition-shadow font-['Work_Sans']"
+        disabled={disabled}
+        className={`flex-1 border rounded-lg px-4 py-2.5 text-[14px] focus:outline-none transition-shadow font-['Work_Sans'] ${
+          disabled 
+            ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed select-none" 
+            : "bg-transparent border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-1 focus:ring-gray-400" 
+        }`}
       />
+    </div>
+  );
+}
+
+// NEW: SelectField for matching the InputField layout
+interface SelectFieldProps {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: LocationNode[];
+  defaultOption: string;
+  disabled?: boolean;
+}
+
+function SelectField({ label, value, onChange, options, defaultOption, disabled = false }: SelectFieldProps) {
+  return (
+    <div className="flex items-center">
+      <label className="w-45 text-[15px] font-medium text-gray-600 shrink-0 font-['Work_Sans']">
+        {label}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className={`flex-1 border rounded-lg px-4 py-2.5 text-[14px] focus:outline-none transition-shadow font-['Work_Sans'] ${
+          disabled 
+            ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed select-none" 
+            : "bg-transparent border-gray-300 text-gray-800 focus:ring-1 focus:ring-gray-400 cursor-pointer" 
+        }`}
+      >
+        <option value="" disabled hidden>{defaultOption}</option>
+        {options.map((opt) => (
+          // Use the opt.name as the value to seamlessly save it back to the database string
+          <option key={opt.code} value={opt.name}>
+            {opt.name}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }
