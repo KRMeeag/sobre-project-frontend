@@ -74,9 +74,31 @@ export default function CheckoutModal({
                       <span className="font-bold text-[#223843] text-sm md:text-base" style={{ fontFamily: 'Raleway, sans-serif' }}>{item.name}</span>
                     </div>
                   </td>
-                  <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{Number(item.price).toFixed(2)}</td>
+                  
+                  {/* NEW: Checkout UI for displaying individual discounts */}
+                  <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                    {item.discount > 0 ? (
+                      <div className="flex flex-col items-center justify-center">
+                        <span className="line-through text-gray-400 text-[11px]">P{Number(item.price).toFixed(2)}</span>
+                        <span className="text-[#033860] font-bold">P{(item.price - (item.price * (item.discount / 100))).toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      `P${Number(item.price).toFixed(2)}`
+                    )}
+                  </td>
+                  
                   <td className="py-4 text-gray-500 text-sm font-medium" style={{ fontFamily: 'Work Sans, sans-serif' }}>{item.totalQuantity}</td>
-                  <td className="py-4 text-gray-500 text-sm font-medium text-right pr-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>P{(Number(item.price) * item.totalQuantity).toFixed(2)}</td>
+                  
+                  <td className="py-4 text-gray-500 text-sm font-medium text-right pr-2" style={{ fontFamily: 'Work Sans, sans-serif' }}>
+                    {item.discount > 0 ? (
+                      <div className="flex flex-col items-end justify-center">
+                        <span className="line-through text-gray-400 text-[11px]">P{(item.price * item.totalQuantity).toFixed(2)}</span>
+                        <span className="text-[#033860] font-bold">P{((item.price - (item.price * (item.discount / 100))) * item.totalQuantity).toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      `P${(item.price * item.totalQuantity).toFixed(2)}`
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
