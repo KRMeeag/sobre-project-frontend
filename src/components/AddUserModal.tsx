@@ -5,7 +5,6 @@ import { DocumentCheckIcon } from "@heroicons/react/24/solid";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-// 1. ADD adminUserId to the interface here
 interface AddUserModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -14,7 +13,6 @@ interface AddUserModalProps {
   onSuccess: () => void;
 }
 
-// 2. Destructure adminUserId here
 export default function AddUserModal({
   isOpen,
   onClose,
@@ -43,6 +41,12 @@ export default function AddUserModal({
       return;
     }
 
+    // NEW: Pre-save check to enforce exactly 11 digits for the phone number
+    if (formData.phone && formData.phone.length !== 11) {
+      setError("Phone number must be exactly 11 digits.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -50,7 +54,7 @@ export default function AddUserModal({
       await axios.post(`${API_URL}/users/org`, {
         ...formData,
         store_id: storeId,
-        admin_user_id: adminUserId, // 3. Pass it to the backend here for the audit log
+        admin_user_id: adminUserId, 
       });
 
       setFormData({ username: "", email: "", password: "", phone: "" });
@@ -91,11 +95,13 @@ export default function AddUserModal({
               </label>
               <input
                 type="text"
-                placeholder="User201"
+                placeholder="Juan Dela Cruz"
                 value={formData.username}
-                onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
+                onChange={(e) => {
+                  // NEW: Instantly remove anything that is NOT a letter or a space
+                  const sanitizedUsername = e.target.value.replace(/[^a-zA-Z\s]/g, '');
+                  setFormData({ ...formData, username: sanitizedUsername });
+                }}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-[14px] text-gray-700 focus:outline-none focus:border-[#002f5a] focus:ring-1 focus:ring-[#002f5a] transition-all bg-white"
               />
             </div>
@@ -133,11 +139,13 @@ export default function AddUserModal({
               </label>
               <input
                 type="text"
-                placeholder="0900 000 0000"
+                placeholder="09123456789"
                 value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
+                onChange={(e) => {
+                  // NEW: Remove all letters/special chars (\D) and cap at exactly 11 characters
+                  const sanitizedPhone = e.target.value.replace(/\D/g, '').slice(0, 11);
+                  setFormData({ ...formData, phone: sanitizedPhone });
+                }}
                 className="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-[14px] text-gray-700 focus:outline-none focus:border-[#002f5a] focus:ring-1 focus:ring-[#002f5a] transition-all bg-white"
               />
             </div>

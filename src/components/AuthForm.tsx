@@ -132,22 +132,23 @@ export default function AuthForm() {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSignUp && step === 1) return handleNext();
-    if (isSignUp && !validateStep2()) return;
+  e.preventDefault();
+  if (isSignUp && step === 1) return handleNext();
+  if (isSignUp && !validateStep2()) return;
 
-    setLoading(true);
-    try {
-      if (isSignUp) {
-        const { data: authData, error: authError } = await supabase.auth.signUp(
-          {
-            email: formData.email,
-            password: formData.password,
-          },
-        );
-        if (authError) throw authError;
+  setLoading(true);
+  try {
+    if (isSignUp) {
+      // 1. Create the user in Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({ 
+        email: formData.email, 
+        password: formData.password 
+      });
+      if (authError) throw authError;
 
-        if (authData.user) {
+      if (authData.user) {
+        try {
+          // 2. Try to create the store in your database
           await axios.post(`${API_URL}/users`, {
             auth_user_id: authData.user.id,
             username: formData.fullName,
@@ -157,24 +158,42 @@ export default function AuthForm() {
             street: formData.street,
             barangay: formData.barangay,
             city: formData.city,
-            province: formData.province,
+            province: formData.province
           });
-          alert("Thank you for creating this account");
+          
+          alert("Check your email for confirmation!");
           window.location.reload();
+
+        } catch (dbError: any) {
+          // 3. STORE CREATION FAILED (Database rejected the duplicate)
+          // Immediately sign out to kill the session and stop the redirect to the POS page!
+          await supabase.auth.signOut();
+          
+          // Throw the error down to the main catch block below so it can alert the user
+          throw dbError; 
         }
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (error) throw error;
       }
-    } catch (err: any) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
+    } else {
+      // --- Log In Logic ---
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email: formData.email, 
+        password: formData.password 
+      });
+      if (error) throw error;
     }
-  };
+  } catch (err: any) {
+    // --- THIS CATCHES BOTH AUTH ERRORS AND STORE CREATION ERRORS ---
+    const errorMessage = err.response?.data?.error || err.message || "";
+    
+    if (errorMessage.toLowerCase().includes("unique constraint") || errorMessage.toLowerCase().includes("duplicate")) {
+      alert("A store with this exact name and street already exists in this location.");
+    } else {
+      alert(errorMessage || "An unexpected error occurred.");
+    }
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="w-full lg:w-[30%] bg-white flex flex-col items-center justify-center p-6 border-l border-gray-100 min-h-screen">
