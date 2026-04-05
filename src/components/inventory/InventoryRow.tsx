@@ -76,7 +76,7 @@ const InventoryRow = ({
           P{item.price.toFixed(2)}
         </td>
         <td className="p-2 text-gray-600 text-center truncate">
-          {item.nearest_expiry ? formatDate(item.nearest_expiry) : "No Items"}
+          {item.nearest_expiry ? formatDate(item.nearest_expiry) : "N/A"}
         </td>
         <td className="p-1 text-center">
           <div className="flex justify-center">

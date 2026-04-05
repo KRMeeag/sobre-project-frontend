@@ -9,9 +9,14 @@ import {
 } from "@heroicons/react/24/outline";
 import type { StockItem } from "../../types";
 import ConfirmDeleteStockModal from "./ConfirmDeleteStockModal";
-import StatCard from "../general/StatCard"; 
-import StockRow from "./StockRow"; 
+import StatCard from "../general/StatCard";
+import StockRow from "./StockRow";
 import { supabase } from "../../lib/supabase"; // <-- ADDED
+import {
+  isValidDate,
+  isFutureDate,
+  getTomorrowDateString,
+} from "../../utils/csvValidators";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -21,10 +26,7 @@ interface StockHistoryProps {
   onUpdate?: () => void;
 }
 
-const StockHistory = ({
-  inventoryId,
-  onUpdate,
-}: StockHistoryProps) => {
+const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loadingStocks, setIsLoadingStocks] = useState(false);
 
@@ -103,7 +105,9 @@ const StockHistory = ({
   const handleBulkDelete = async () => {
     setIsDeleting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
       await Promise.all(
@@ -124,17 +128,21 @@ const StockHistory = ({
   };
 
   const submitAdd = async () => {
-    if (!addForm.amount || !addForm.expiry_date)
-      return alert("Amount and Expiry Date required.");
+    // 1. Removed expiry_date from the required check
+    if (!addForm.amount) return alert("Amount is required.");
+
     setIsSavingAdd(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
       await axios.post(`${API_URL}/stock?users_id=${userId}`, {
         inventory_id: inventoryId,
         amount: Number(addForm.amount),
-        expiry_date: addForm.expiry_date,
+        // 2. Fallback to null if string is empty
+        expiry_date: addForm.expiry_date || null,
       });
       await fetchStock();
       if (onUpdate) onUpdate();
@@ -159,16 +167,20 @@ const StockHistory = ({
   };
 
   const submitEdit = async (id: string) => {
-    if (!editForm.amount || !editForm.expiry_date)
-      return alert("Amount and Expiry Date required.");
+    // 1. Removed expiry_date from the required check
+    if (!editForm.amount) return alert("Amount is required.");
+
     setIsSavingEdit(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
       await axios.patch(`${API_URL}/stock/${id}?users_id=${userId}`, {
         amount: Number(editForm.amount),
-        expiry_date: editForm.expiry_date,
+        // 2. Fallback to null if string is empty
+        expiry_date: editForm.expiry_date || null,
       });
       await fetchStock();
       if (onUpdate) onUpdate();
@@ -270,7 +282,9 @@ const StockHistory = ({
                 )}
                 <th className="py-3 px-4 text-center w-[20%]">Barcode</th>
                 <th className="py-3 px-4 text-center w-[25%]">Stocked On</th>
-                <th className="py-3 px-4 text-center w-[15%]">Amount</th>
+                <th className="py-3 px-4 text-center w-[15%]">
+                  Amount{isAdding && <span className="text-[#b13e3e]"> *</span>}
+                </th>
                 <th className="py-3 px-4 text-center w-[25%]">
                   Expiration Date
                 </th>
@@ -280,57 +294,83 @@ const StockHistory = ({
               </tr>
             </thead>
             <tbody className="text-[#223843] divide-y divide-gray-100">
-              {isAdding && (
-                <tr className="bg-green-50/50">
-                  <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
-                    Auto-generated
-                  </td>
-                  <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
-                    Today
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      type="number"
-                      min="1"
-                      value={addForm.amount}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, amount: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-center text-sm focus:outline-none focus:border-[#2aa564]"
-                      placeholder="Qty"
-                      autoFocus
-                    />
-                  </td>
-                  <td className="py-2 px-4">
-                    <input
-                      type="date"
-                      value={addForm.expiry_date}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, expiry_date: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-center text-sm focus:outline-none focus:border-[#2aa564]"
-                    />
-                  </td>
-                  <td className="py-2 px-4 text-center">
-                    <div className="flex justify-center gap-1">
-                      <button
-                        onClick={submitAdd}
-                        disabled={isSavingAdd}
-                        className="p-1.5 bg-[#2aa564] text-white rounded hover:bg-[#238f55] transition shadow-sm disabled:opacity-50"
-                      >
-                        <CheckIcon className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => setIsAdding(false)}
-                        disabled={isSavingAdd}
-                        className="p-1.5 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-100 transition shadow-sm disabled:opacity-50"
-                      >
-                        <XMarkIcon className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )}
+              {isAdding &&
+                (() => {
+                  // Derived validation state for the Add Form
+                  const isAmountValid =
+                    !isNaN(Number(addForm.amount)) &&
+                    Number(addForm.amount) > 0;
+                  const isExpValid =
+                    !addForm.expiry_date ||
+                    (isValidDate(addForm.expiry_date) &&
+                      isFutureDate(addForm.expiry_date));
+                  const isAddFormValid = isAmountValid && isExpValid;
+
+                  return (
+                    <tr className="bg-green-50/50">
+                      {isDeleteMode && <td className="py-2 px-4"></td>}
+                      <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
+                        Auto-generated
+                      </td>
+                      <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
+                        Today
+                      </td>
+                      <td className="py-2 px-4">
+                        <input
+                          type="number"
+                          min="1"
+                          value={addForm.amount}
+                          onChange={(e) =>
+                            setAddForm({ ...addForm, amount: e.target.value })
+                          }
+                          className={`w-full border rounded px-2 py-1 text-center text-sm outline-none transition focus:ring-1 ${!isAmountValid && addForm.amount !== "" ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-[#2aa564] focus:ring-[#2aa564]"}`}
+                          placeholder="Qty"
+                          autoFocus
+                        />
+                      </td>
+                      <td className="py-2 px-4">
+                        <input
+                          type="date"
+                          min={getTomorrowDateString()}
+                          value={addForm.expiry_date}
+                          onChange={(e) =>
+                            setAddForm({
+                              ...addForm,
+                              expiry_date: e.target.value,
+                            })
+                          }
+                          className={`w-full border rounded px-2 py-1 text-center text-sm outline-none transition focus:ring-1 ${!isExpValid ? "border-red-400 text-red-600 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-[#2aa564] focus:ring-[#2aa564]"}`}
+                        />
+                      </td>
+                      <td className="py-2 px-4 text-center">
+                        <div className="flex justify-center gap-1">
+                          <button
+                            onClick={submitAdd}
+                            disabled={isSavingAdd || !isAddFormValid}
+                            className={`p-1.5 rounded transition shadow-sm ${isAddFormValid ? "bg-[#2aa564] text-white hover:bg-[#238f55]" : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"}`}
+                            title={
+                              isAddFormValid
+                                ? "Save Batch"
+                                : "Enter a valid quantity"
+                            }
+                          >
+                            <CheckIcon className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setIsAdding(false);
+                              setAddForm({ amount: "", expiry_date: "" });
+                            }}
+                            disabled={isSavingAdd}
+                            className="p-1.5 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-100 transition shadow-sm disabled:opacity-50"
+                          >
+                            <XMarkIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })()}
 
               {stocks.length === 0 && !isAdding && (
                 <tr>

@@ -77,7 +77,7 @@ export default function StockRow({
         {isEditing ? (
           <input
             type="date"
-            value={editForm.expiry_date}
+            value={editForm.expiry_date || ""} // Ensure it falls back to empty string for the UI
             onChange={(e) => onEditChange("expiry_date", e.target.value)}
             className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#e6d04f]"
           />
