@@ -25,6 +25,7 @@ export interface Product {
   category: string;
   price: number;
   discount: number;
+  photo?: string; // <-- NEW: Add photo
   stock: StockItem[];
 }
 
@@ -34,6 +35,7 @@ export interface CartItem {
   price: number;
   discount: number;
   totalQuantity: number;
+  photo?: string; // <-- NEW: Add photo
   variations: { stockId: string; variationCode: string; quantity: number }[];
 }
 
@@ -186,7 +188,8 @@ const POSPage = () => {
           ...item, 
           totalQuantity: item.totalQuantity + addedTotal, 
           variations: mergedVariations,
-          discount: selectedProduct.discount || 0 
+          discount: selectedProduct.discount || 0,
+          photo: selectedProduct.photo, // <-- NEW: Sync the photo
         };
         return updatedCart;
       } else {
@@ -196,7 +199,8 @@ const POSPage = () => {
             productId: selectedProduct.id, 
             name: selectedProduct.name, 
             price: selectedProduct.price, 
-            discount: selectedProduct.discount || 0, 
+            discount: selectedProduct.discount || 0,
+            photo: selectedProduct.photo, // <-- NEW: Pass individual photo
             totalQuantity: addedTotal, 
             variations: addedVariations 
           }
