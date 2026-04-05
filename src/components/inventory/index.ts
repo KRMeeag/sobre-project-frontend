@@ -9,3 +9,4 @@ export { default as SortChip } from "./SortChip";
 export { default as StatusBadge } from "./StatusBadge";
 export { default as StockHistory } from "./StockHistory";
 export { default as StockRow } from "./StockRow";
+export { default as ImportWizardModal } from "./ImportWizardModal";

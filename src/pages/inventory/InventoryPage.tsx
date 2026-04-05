@@ -7,12 +7,21 @@ import {
   TrashIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import InventoryRow from "../../components/inventory/InventoryRow";
-import InventorySidebar from "../../components/inventory/InventorySidebar";
-import AddItemModal from "../../components/inventory/AddItemModal";
-import ConfirmDeleteModal from "../../components/inventory/ConfirmDeleteModal";
+import {
+  InventoryRow,
+  InventorySidebar,
+  AddItemModal,
+  ConfirmDeleteModal,
+  ImportWizardModal,
+} from "../../components/inventory/index";
 import Toast from "../../components/general/Toast";
-import { useInventoryData, useInventoryFilters, useSelectionManager, useExportManager, useToast  } from "../../hooks/";
+import {
+  useInventoryData,
+  useInventoryFilters,
+  useSelectionManager,
+  useExportManager,
+  useToast,
+} from "../../hooks/";
 
 const InventoryPage = () => {
   const mainScrollRef = useRef<HTMLElement>(null);
@@ -20,6 +29,7 @@ const InventoryPage = () => {
   const { toast, showToast, hideToast } = useToast();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // 2. Data Fetching
   const {
@@ -114,11 +124,11 @@ const InventoryPage = () => {
 
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
-      <Toast 
-        isVisible={toast.isVisible} 
-        message={toast.message} 
-        type={toast.type} 
-        onClose={hideToast} 
+      <Toast
+        isVisible={toast.isVisible}
+        message={toast.message}
+        type={toast.type}
+        onClose={hideToast}
       />
       <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 
@@ -195,7 +205,10 @@ const InventoryPage = () => {
                   </div>
                 )}
               </div>
-              <button className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm">
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-white border border-gray-300 text-[#223843] px-4 py-2.5 rounded-lg shadow-sm flex items-center gap-2 hover:bg-gray-50 transition font-medium text-sm"
+              >
                 <ArrowDownTrayIcon className="w-5 h-5" /> Import CSV
               </button>
             </div>
@@ -338,6 +351,23 @@ const InventoryPage = () => {
         onConfirm={handleBulkDelete}
         selectedItems={selectedItemsData}
         isDeleting={isDeleting}
+      />
+
+      <ImportWizardModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        existingInventory={inventory}
+        existingCategories={existingCategories} // Add this
+        existingSuppliers={existingSuppliers} // Add this
+        onConfirm={async (updates, newItems, supplier) => {
+          // supplier added
+          console.log("Supplier:", supplier);
+          console.log("Updates:", updates);
+          console.log("New:", newItems);
+          await new Promise((resolve) => setTimeout(resolve, 1500));
+          showToast(`Successfully imported items.`, "success");
+          fetchInventory(apiParams);
+        }}
       />
     </div>
   );

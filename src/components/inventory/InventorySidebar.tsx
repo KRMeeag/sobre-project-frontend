@@ -1,7 +1,7 @@
 import { useState } from "react";
 import FilterSection from "./FilterSection";
 import SortChip from "./SortChip";
-import type { FilterKey } from "../../pages/inventory/InventoryPage";
+import type { FilterKey } from "../../types";
 
 interface InventorySidebarProps {
   activeSort: string | null;
@@ -39,7 +39,7 @@ const InventorySidebar = (props: InventorySidebarProps) => {
   const isSortDisabled = !props.activeSort;
 
   return (
-    <aside className="w-72 bg-[#dbd3d8] shrink-0 border-r border-[#c4bcc0] flex flex-col shadow-xl z-10 hidden lg:flex">
+    <aside className="w-72 bg-[#dbd3d8] shrink-0 border-r border-[#c4bcc0] flex flex-col shadow-xl z-10 lg:flex">
       <div className="p-6 border-b border-[#c4bcc0] bg-[#d4cdd2]">
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-bold text-[#223843] font-['Raleway']">Filters</h2>

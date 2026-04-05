@@ -27,3 +27,27 @@ export interface StockItem {
   barcode: string;
   restock_date: string;
 }
+
+export type FilterKey = "category" | "stockStatus" | "supplier" | "restock" | "expiry";
+
+export interface CSVRowData {
+  name: string;
+  cost: number;
+  amount: number;
+  expiryDate?: string;
+  rawRow: number;
+}
+
+export interface CSVError extends CSVRowData {
+  errorMessage: string;
+}
+
+export interface CSVUpdate extends CSVRowData {
+  inventoryId: string;
+  currentStock: number;
+}
+
+export interface CSVNewItem extends CSVRowData {
+  sellingPrice: number; 
+  category: string; // Now strictly required
+}
