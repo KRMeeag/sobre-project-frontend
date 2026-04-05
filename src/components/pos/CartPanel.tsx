@@ -1,4 +1,4 @@
-import type { CartItem } from "../pages/POSPage";
+import type { CartItem } from "../../pages/POSPage";
 
 interface CartPanelProps {
   cart: CartItem[];
@@ -36,12 +36,28 @@ export default function CartPanel({
                   <span className="font-bold text-black text-lg md:text-xl w-6 text-center shrink-0" style={{ fontFamily: "Raleway, sans-serif" }}>
                     {item.totalQuantity}
                   </span>
+                  
+                  {/* NEW: Cart UI displaying discounts seamlessly */}
                   <div className="flex flex-col ml-1 overflow-hidden">
-                    <span className="font-bold text-black text-sm md:text-base leading-tight truncate" style={{ fontFamily: "Work Sans, sans-serif" }}>{item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-black text-sm md:text-base leading-tight truncate" style={{ fontFamily: "Work Sans, sans-serif" }}>{item.name}</span>
+                      {item.discount > 0 && (
+                        <span className="bg-[#e0f2fe] text-[#033860] text-[8px] font-extrabold px-1.5 py-0.5 rounded-full">{item.discount}% OFF</span>
+                      )}
+                    </div>
+                    
                     <span className="text-black text-xs md:text-sm mt-0.5" style={{ fontFamily: "Work Sans, sans-serif" }}>
-                      P{(Number(item.price) * item.totalQuantity).toFixed(2)}
+                      {item.discount > 0 ? (
+                        <>
+                          <span className="line-through text-gray-400 mr-1.5">P{(item.price * item.totalQuantity).toFixed(2)}</span>
+                          <span className="text-[#033860] font-bold">P{((item.price - (item.price * (item.discount / 100))) * item.totalQuantity).toFixed(2)}</span>
+                        </>
+                      ) : (
+                        `P${(item.price * item.totalQuantity).toFixed(2)}`
+                      )}
                     </span>
                   </div>
+
                 </div>
                 <button onClick={() => onInitiateRemove(item.productId)} className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full hover:bg-red-100 group transition-colors ml-2">
                   <svg width="20" height="20" viewBox="0 0 24 24" className="fill-[#fd1d1d] opacity-80 group-hover:opacity-100">
