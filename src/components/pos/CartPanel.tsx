@@ -1,4 +1,4 @@
-import type { CartItem } from "../pages/POSPage";
+import type { CartItem } from "../../pages/POSPage";
 
 interface CartPanelProps {
   cart: CartItem[];
@@ -33,21 +33,53 @@ export default function CartPanel({
             {cart.map((item) => (
               <div key={item.productId} className="flex items-center justify-between bg-[#e9e9e9] rounded-xl p-3">
                 <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
+                  
                   <span className="font-bold text-black text-lg md:text-xl w-6 text-center shrink-0" style={{ fontFamily: "Raleway, sans-serif" }}>
                     {item.totalQuantity}
                   </span>
+                  
+                  {/* UPDATED: Cart mini-thumbnail image with Letter Fallback */}
+                  <div className="w-10 h-10 rounded-full bg-white border border-gray-300 shrink-0 flex items-center justify-center overflow-hidden">
+                    {item.photo ? (
+                      <img src={item.photo} alt={item.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-gray-400 text-lg font-bold uppercase" style={{ fontFamily: "Raleway, sans-serif" }}>
+                        {item.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  
                   <div className="flex flex-col ml-1 overflow-hidden">
                     <span className="font-bold text-black text-sm md:text-base leading-tight truncate" style={{ fontFamily: "Work Sans, sans-serif" }}>{item.name}</span>
+                    
                     <span className="text-black text-xs md:text-sm mt-0.5" style={{ fontFamily: "Work Sans, sans-serif" }}>
-                      P{(Number(item.price) * item.totalQuantity).toFixed(2)}
+                      {item.discount > 0 ? (
+                        <>
+                          <span className="line-through text-gray-400 mr-1.5">P{(item.price * item.totalQuantity).toFixed(2)}</span>
+                          <span className="text-[#033860] font-bold">P{((item.price - (item.price * (item.discount / 100))) * item.totalQuantity).toFixed(2)}</span>
+                        </>
+                      ) : (
+                        `P${(item.price * item.totalQuantity).toFixed(2)}`
+                      )}
                     </span>
                   </div>
+
                 </div>
-                <button onClick={() => onInitiateRemove(item.productId)} className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full hover:bg-red-100 group transition-colors ml-2">
-                  <svg width="20" height="20" viewBox="0 0 24 24" className="fill-[#fd1d1d] opacity-80 group-hover:opacity-100">
-                    <path fillRule="evenodd" clipRule="evenodd" d="M12 2.25C6.615 2.25 2.25 6.615 2.25 12C2.25 17.385 6.615 21.75 12 21.75C17.385 21.75 21.75 17.385 21.75 12C21.75 6.615 17.385 2.25 12 2.25ZM10.28 9.22C9.988 8.927 9.513 8.927 9.22 9.22C8.927 9.513 8.927 9.988 9.22 10.28L10.94 12L9.22 13.72C8.927 14.013 8.927 14.488 9.22 14.78C9.513 15.073 9.988 15.073 10.28 14.78L12 13.06L13.72 14.78C14.013 15.073 14.488 15.073 14.78 14.78C15.073 14.488 15.073 14.013 14.78 13.72L13.06 12L14.78 10.28C15.073 9.988 15.073 9.513 14.78 9.22C14.488 8.927 14.013 8.927 13.72 9.22L12 10.94L10.28 9.22Z" />
-                  </svg>
-                </button>
+                
+                {/* UPDATED: Moved Discount Badge next to the X button */}
+                <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                  {item.discount > 0 && (
+                    <span className="bg-[#e0f2fe] text-[#033860] text-[10px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                      {item.discount}% OFF
+                    </span>
+                  )}
+                  <button onClick={() => onInitiateRemove(item.productId)} className="w-7 h-7 flex items-center justify-center shrink-0 rounded-full hover:bg-red-100 group transition-colors">
+                    <svg width="20" height="20" viewBox="0 0 24 24" className="fill-[#fd1d1d] opacity-80 group-hover:opacity-100">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M12 2.25C6.615 2.25 2.25 6.615 2.25 12C2.25 17.385 6.615 21.75 12 21.75C17.385 21.75 21.75 17.385 21.75 12C21.75 6.615 17.385 2.25 12 2.25ZM10.28 9.22C9.988 8.927 9.513 8.927 9.22 9.22C8.927 9.513 8.927 9.988 9.22 10.28L10.94 12L9.22 13.72C8.927 14.013 8.927 14.488 9.22 14.78C9.513 15.073 9.988 15.073 10.28 14.78L12 13.06L13.72 14.78C14.013 15.073 14.488 15.073 14.78 14.78C15.073 14.488 15.073 14.013 14.78 13.72L13.06 12L14.78 10.28C15.073 9.988 15.073 9.513 14.78 9.22C14.488 8.927 14.013 8.927 13.72 9.22L12 10.94L10.28 9.22Z" />
+                    </svg>
+                  </button>
+                </div>
+
               </div>
             ))}
           </div>

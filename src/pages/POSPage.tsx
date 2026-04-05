@@ -4,10 +4,10 @@ import { supabase } from "../lib/supabase";
 
 import VariationModal from "../components/VariationModal";
 import CheckoutModal from "../components/CheckoutModal";
-import POSHeader from "../pos/POSHeader";
-import POSCategories from "../pos/POSCategories";
-import ProductGrid from "../pos/ProductGrid";
-import CartPanel from "../pos/CartPanel";
+import POSHeader from "../components/pos/POSHeader";
+import POSCategories from "../components/pos/POSCategories";
+import ProductGrid from "../components/pos/ProductGrid";
+import CartPanel from "../components/pos/CartPanel";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -24,6 +24,8 @@ export interface Product {
   name: string;
   category: string;
   price: number;
+  discount: number;
+  photo?: string; // <-- NEW: Add photo
   stock: StockItem[];
 }
 
@@ -31,7 +33,9 @@ export interface CartItem {
   productId: string;
   name: string;
   price: number;
+  discount: number;
   totalQuantity: number;
+  photo?: string; // <-- NEW: Add photo
   variations: { stockId: string; variationCode: string; quantity: number }[];
 }
 
@@ -40,7 +44,6 @@ const POSPage = () => {
   const [authUserId, setAuthUserId] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
 
-  // Phase 1 Additions
   const [categories, setCategories] = useState<string[]>(["All"]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -60,7 +63,6 @@ const POSPage = () => {
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [itemToRemoveId, setItemToRemoveId] = useState<string | null>(null);
 
-  // 1. Fetch User Auth
   useEffect(() => {
     const fetchUser = async () => {
       try {
@@ -81,7 +83,6 @@ const POSPage = () => {
     fetchUser();
   }, []);
 
-  // 2. Fetch Dynamic Categories
   useEffect(() => {
     if (!storeId) return;
     const fetchCategories = async () => {
@@ -98,7 +99,6 @@ const POSPage = () => {
     fetchCategories();
   }, [storeId]);
 
-  // 3. Fetch Inventory based on Search/Category
   useEffect(() => {
     if (!storeId) return;
 
@@ -125,7 +125,6 @@ const POSPage = () => {
     return () => clearTimeout(timeoutId);
   }, [activeCategory, searchQuery, storeId]);
 
-  // Stock Management Helpers
   const getQtyInCart = (productId: string, stockId: string) => {
     const cartItem = cart.find((item) => item.productId === productId);
     if (!cartItem) return 0;
@@ -185,10 +184,27 @@ const POSPage = () => {
           else mergedVariations.push(addedVar);
         });
 
-        updatedCart[existingItemIndex] = { ...item, totalQuantity: item.totalQuantity + addedTotal, variations: mergedVariations };
+        updatedCart[existingItemIndex] = { 
+          ...item, 
+          totalQuantity: item.totalQuantity + addedTotal, 
+          variations: mergedVariations,
+          discount: selectedProduct.discount || 0,
+          photo: selectedProduct.photo, // <-- NEW: Sync the photo
+        };
         return updatedCart;
       } else {
-        return [...prevCart, { productId: selectedProduct.id, name: selectedProduct.name, price: selectedProduct.price, totalQuantity: addedTotal, variations: addedVariations }];
+        return [
+          ...prevCart, 
+          { 
+            productId: selectedProduct.id, 
+            name: selectedProduct.name, 
+            price: selectedProduct.price, 
+            discount: selectedProduct.discount || 0,
+            photo: selectedProduct.photo, // <-- NEW: Pass individual photo
+            totalQuantity: addedTotal, 
+            variations: addedVariations 
+          }
+        ];
       }
     });
 
@@ -228,7 +244,10 @@ const POSPage = () => {
         total_price: payableAmount,
         amount_tendered: typeof tenderedAmount === "number" ? tenderedAmount : 0,
         change: change,
-        cart: cart,
+        cart: cart.map(item => ({
+          ...item,
+          price: item.price - (item.price * ((item.discount || 0) / 100))
+        })),
       };
 
       const response = await fetch(`${API_URL}/sales`, {
@@ -271,22 +290,37 @@ const POSPage = () => {
     }
   };
 
-  // Math Calculations
-  const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.totalQuantity, 0);
+  // ==========================================
+  // FIXED MATH: Separating Subtotal and Discount
+  // ==========================================
+  
+  // 1. Subtotal is the GROSS original price
+  const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * item.totalQuantity), 0);
+  
+  // 2. Sum up all savings strictly from item-level discounts
+  const itemDiscountsTotal = cart.reduce((sum, item) => {
+    return sum + ((Number(item.price) * ((item.discount || 0) / 100)) * item.totalQuantity);
+  }, 0);
+
   const currentDiscount = typeof discountPercent === "number" ? discountPercent : 0;
-  const discountAmount = subtotal * (currentDiscount / 100);
+  
+  // 3. Any extra global discount is calculated on the remaining balance
+  const globalDiscountAmount = (subtotal - itemDiscountsTotal) * (currentDiscount / 100);
+  
+  // 4. The grand total discount to display is BOTH combined!
+  const discountAmount = itemDiscountsTotal + globalDiscountAmount;
+  
   const payableAmount = subtotal - discountAmount;
   const change = typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800">
-      <div className="h-3 md:h-4 w-full bg-[#033860] shadow-sm z-40 shrink-0"></div>
+      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 
       <div className="flex flex-1 overflow-hidden min-w-0 w-full">
         <div className="flex-1 flex flex-col h-full px-4 pt-4 md:px-6 md:pt-5 min-w-0 max-w-full">
           
           <POSHeader userName={userName} searchQuery={searchQuery} setSearchQuery={setSearchQuery} isLoading={isLoading} />
-          
           <POSCategories categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
 
           <main className="flex-1 overflow-y-auto custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
