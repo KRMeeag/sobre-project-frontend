@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { supabase } from "../lib/supabase";
 
@@ -8,6 +8,8 @@ import POSHeader from "../components/pos/POSHeader";
 import POSCategories from "../components/pos/POSCategories";
 import ProductGrid from "../components/pos/ProductGrid";
 import CartPanel from "../components/pos/CartPanel";
+import QRScanner from "../components/pos/QRScanner"; 
+import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -25,7 +27,7 @@ export interface Product {
   category: string;
   price: number;
   discount: number;
-  photo?: string; // <-- NEW: Add photo
+  photo?: string;
   stock: StockItem[];
 }
 
@@ -34,8 +36,8 @@ export interface CartItem {
   name: string;
   price: number;
   discount: number;
+  photo?: string;
   totalQuantity: number;
-  photo?: string; // <-- NEW: Add photo
   variations: { stockId: string; variationCode: string; quantity: number }[];
 }
 
@@ -62,6 +64,13 @@ const POSPage = () => {
 
   const [isRemoveModalOpen, setIsRemoveModalOpen] = useState(false);
   const [itemToRemoveId, setItemToRemoveId] = useState<string | null>(null);
+
+  // --- NEW SCANNER STATES ---
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanFlash, setScanFlash] = useState(false);
+  
+  // FIXED: A dictionary that remembers EXACTLY when each specific item was last scanned
+  const lastScannedItems = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -99,6 +108,7 @@ const POSPage = () => {
     fetchCategories();
   }, [storeId]);
 
+  // FIXED: Removed isScanning from dependencies so it doesn't block the data fetch!
   useEffect(() => {
     if (!storeId) return;
 
@@ -135,6 +145,90 @@ const POSPage = () => {
   const getTotalAvailableStock = (product: Product) => {
     if (!product.stock) return 0;
     return product.stock.reduce((total, s) => total + Math.max(0, s.amount - getQtyInCart(product.id, s.id)), 0);
+  };
+
+  // ==========================================
+  // QR SCAN HANDLER (Smart Same-Item Cooldown)
+  // ==========================================
+  const handleQRScan = async (decodedText: string) => {
+    try {
+      // 1. Extract the barcode first so we know WHAT we are looking at
+      let barcode = decodedText;
+      try {
+        const parsed = JSON.parse(decodedText);
+        barcode = parsed.barcode || parsed.sku || decodedText;
+      } catch(e) { }
+
+      const now = Date.now();
+      const lastTimeScanned = lastScannedItems.current[barcode] || 0;
+
+      // 2. THE MAGIC: If this EXACT item was scanned in the last 3 seconds, ignore it!
+      // (This prevents the 10-frames-per-second rapid fire)
+      if (now - lastTimeScanned < 3000) return; 
+
+      // 3. Immediately log the timestamp for this item so the next camera frame ignores it
+      lastScannedItems.current[barcode] = now;
+
+      const response = await axios.get(`${API_URL}/inventory/scan`, {
+        params: { barcode, store_id: storeId }
+      });
+
+      const { product, scannedStock } = response.data;
+
+      // Ensure we don't overdraft stock via scanner
+      const qtyInCart = getQtyInCart(product.id, scannedStock.id);
+      if (scannedStock.amount - qtyInCart <= 0) {
+        toast.error(`Out of Stock: ${product.name}`);
+        return;
+      }
+
+      // Add exactly 1 unit of this specific variation directly to cart
+      setCart((prevCart) => {
+        const existingItemIndex = prevCart.findIndex((item) => item.productId === product.id);
+
+        if (existingItemIndex >= 0) {
+          const updatedCart = [...prevCart];
+          const item = updatedCart[existingItemIndex];
+          const mergedVariations = [...item.variations];
+          
+          const varIndex = mergedVariations.findIndex((v) => v.stockId === scannedStock.id);
+          if (varIndex >= 0) mergedVariations[varIndex].quantity += 1;
+          else mergedVariations.push({ stockId: scannedStock.id, variationCode: scannedStock.barcode, quantity: 1 });
+
+          updatedCart[existingItemIndex] = { 
+            ...item, 
+            totalQuantity: item.totalQuantity + 1, 
+            variations: mergedVariations,
+            discount: product.discount || 0,
+            photo: product.photo
+          };
+          return updatedCart;
+        } else {
+          return [
+            ...prevCart, 
+            { 
+              productId: product.id, 
+              name: product.name, 
+              price: product.price, 
+              discount: product.discount || 0, 
+              photo: product.photo,
+              totalQuantity: 1, 
+              variations: [{ stockId: scannedStock.id, variationCode: scannedStock.barcode, quantity: 1 }] 
+            }
+          ];
+        }
+      });
+
+      // Fire Visual Flash Indicator!
+      setScanFlash(true);
+      setTimeout(() => setScanFlash(false), 250);
+      toast.success(`Scanned: ${product.name}`);
+
+    } catch (err) {
+      console.error("Scan error:", err);
+      // Optional: Prevent toast spam if it's reading a random non-inventory QR code
+      // toast.error("Barcode not recognized");
+    }
   };
 
   const handleProductClick = (product: Product) => {
@@ -184,23 +278,25 @@ const POSPage = () => {
           else mergedVariations.push(addedVar);
         });
 
+        // FIXED: Added discount and photo
         updatedCart[existingItemIndex] = { 
           ...item, 
           totalQuantity: item.totalQuantity + addedTotal, 
           variations: mergedVariations,
           discount: selectedProduct.discount || 0,
-          photo: selectedProduct.photo, // <-- NEW: Sync the photo
+          photo: selectedProduct.photo
         };
         return updatedCart;
       } else {
+        // FIXED: Added discount and photo
         return [
           ...prevCart, 
           { 
             productId: selectedProduct.id, 
             name: selectedProduct.name, 
             price: selectedProduct.price, 
-            discount: selectedProduct.discount || 0,
-            photo: selectedProduct.photo, // <-- NEW: Pass individual photo
+            discount: selectedProduct.discount || 0, 
+            photo: selectedProduct.photo, 
             totalQuantity: addedTotal, 
             variations: addedVariations 
           }
@@ -244,10 +340,7 @@ const POSPage = () => {
         total_price: payableAmount,
         amount_tendered: typeof tenderedAmount === "number" ? tenderedAmount : 0,
         change: change,
-        cart: cart.map(item => ({
-          ...item,
-          price: item.price - (item.price * ((item.discount || 0) / 100))
-        })),
+        cart: cart,
       };
 
       const response = await fetch(`${API_URL}/sales`, {
@@ -290,42 +383,46 @@ const POSPage = () => {
     }
   };
 
-  // ==========================================
-  // FIXED MATH: Separating Subtotal and Discount
-  // ==========================================
-  
-  // 1. Subtotal is the GROSS original price
-  const subtotal = cart.reduce((sum, item) => sum + (Number(item.price) * item.totalQuantity), 0);
-  
-  // 2. Sum up all savings strictly from item-level discounts
-  const itemDiscountsTotal = cart.reduce((sum, item) => {
-    return sum + ((Number(item.price) * ((item.discount || 0) / 100)) * item.totalQuantity);
-  }, 0);
-
+  const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.totalQuantity, 0);
   const currentDiscount = typeof discountPercent === "number" ? discountPercent : 0;
-  
-  // 3. Any extra global discount is calculated on the remaining balance
-  const globalDiscountAmount = (subtotal - itemDiscountsTotal) * (currentDiscount / 100);
-  
-  // 4. The grand total discount to display is BOTH combined!
-  const discountAmount = itemDiscountsTotal + globalDiscountAmount;
-  
+  const discountAmount = subtotal * (currentDiscount / 100);
   const payableAmount = subtotal - discountAmount;
   const change = typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
 
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800">
+    <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800 relative">
+      
+      {/* THE VISUAL FLASH INDICATOR FOR SUCCESSFUL SCANS */}
+      <div className={`fixed inset-0 pointer-events-none z-[100] transition-colors duration-200 ${scanFlash ? 'bg-green-500/20 border-[12px] border-green-500' : 'bg-transparent border-0 border-transparent'}`} />
+
       <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
 
       <div className="flex flex-1 overflow-hidden min-w-0 w-full">
         <div className="flex-1 flex flex-col h-full px-4 pt-4 md:px-6 md:pt-5 min-w-0 max-w-full">
           
-          <POSHeader userName={userName} searchQuery={searchQuery} setSearchQuery={setSearchQuery} isLoading={isLoading} />
-          <POSCategories categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+          <POSHeader 
+            userName={userName} 
+            searchQuery={searchQuery} 
+            setSearchQuery={setSearchQuery} 
+            isLoading={isLoading} 
+            isScanning={isScanning}
+            setIsScanning={setIsScanning}
+          />
+          
+          {/* Show Scanner OR the normal Categories/Grid */}
+          {isScanning ? (
+            <div className="flex-1 pb-6 w-full h-full flex flex-col">
+              <QRScanner onScan={handleQRScan} />
+            </div>
+          ) : (
+            <>
+              <POSCategories categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+              <main className="flex-1 overflow-y-auto custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
+                <ProductGrid products={products} isLoading={isLoading} getTotalAvailableStock={getTotalAvailableStock} onProductClick={handleProductClick} />
+              </main>
+            </>
+          )}
 
-          <main className="flex-1 overflow-y-auto custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-            <ProductGrid products={products} isLoading={isLoading} getTotalAvailableStock={getTotalAvailableStock} onProductClick={handleProductClick} />
-          </main>
         </div>
 
         <CartPanel
@@ -341,7 +438,7 @@ const POSPage = () => {
       </div>
 
       <VariationModal
-        isOpen={!!selectedProduct}
+        isOpen={!!selectedProduct && !isScanning}
         selectedProduct={selectedProduct}
         variationQuantities={variationQuantities}
         getQtyInCart={getQtyInCart}
