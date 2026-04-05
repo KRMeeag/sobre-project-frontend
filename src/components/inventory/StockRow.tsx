@@ -10,7 +10,7 @@ interface StockRowProps {
   isEditing: boolean;
   isDeleteMode: boolean;
   isSelected: boolean;
-  editForm: { amount: string; expiry_date: string };
+  editForm: { amount: string; expiry_date: string; supplier: string }; // ADDED supplier to type
   isSavingEdit: boolean;
   onToggleSelect: (id: string) => void;
   onEditChange: (field: string, value: string) => void;
@@ -58,6 +58,20 @@ export default function StockRow({
       <td className="py-3 px-4 text-center text-sm">
         {formatDisplayDate(stock.restock_date)}
       </td>
+      {/* ADDED Supplier Cell */}
+      <td className="py-3 px-4 text-center text-sm font-medium text-gray-700">
+        {isEditing ? (
+          <input
+            type="text"
+            value={editForm.supplier}
+            onChange={(e) => onEditChange("supplier", e.target.value)}
+            className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#e6d04f]"
+            placeholder="Supplier Name"
+          />
+        ) : (
+          stock.supplier || "N/A"
+        )}
+      </td>
       <td className="py-3 px-4 text-center font-bold text-sm">
         {isEditing ? (
           <input
@@ -68,8 +82,8 @@ export default function StockRow({
             className="w-20 border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#e6d04f]"
           />
         ) : (
-          <span className={stock.amount === 0 ? "text-gray-400" : ""}>
-            {stock.amount}
+          <span className={(stock.amount || 0) === 0 ? "text-gray-400" : ""}>
+            {stock.amount || 0}
           </span>
         )}
       </td>
@@ -77,7 +91,7 @@ export default function StockRow({
         {isEditing ? (
           <input
             type="date"
-            value={editForm.expiry_date}
+            value={editForm.expiry_date || ""}
             onChange={(e) => onEditChange("expiry_date", e.target.value)}
             className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#e6d04f]"
           />

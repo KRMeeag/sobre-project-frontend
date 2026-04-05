@@ -1,4 +1,3 @@
-import React from "react";
 import type { Product } from "../pages/POSPage";
 
 interface VariationModalProps {
@@ -42,7 +41,7 @@ export default function VariationModal({
         <div className="w-full border-t border-[#bab6b6] mb-2 shrink-0"></div>
 
         <div className="w-full overflow-x-auto overflow-y-auto custom-scrollbar flex-1 min-h-37.5 pr-2">
-          <table className="w-full text-center border-collapse min-w-[500px]">
+          <table className="w-full text-center border-collapse min-w-125">
             <thead>
               <tr>
                 <th className="pb-3 pt-2 font-normal text-[#ada7a7] text-sm" style={{ fontFamily: 'Raleway, sans-serif' }}>Bar Code</th>

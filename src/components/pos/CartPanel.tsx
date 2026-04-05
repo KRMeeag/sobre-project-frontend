@@ -15,7 +15,7 @@ export default function CartPanel({
   cart, subtotal, discountPercent, setDiscountPercent, discountAmount, payableAmount, onInitiateRemove, onProceedCheckout
 }: CartPanelProps) {
   return (
-    <aside className="w-[300px] lg:w-[350px] xl:w-[380px] h-full bg-white border-l border-[#b4b4b4] shadow-[-4px_0_15px_rgba(0,0,0,0.05)] flex flex-col z-30 shrink-0">
+    <aside className="w-75 lg:w-87.5 xl:w-95 h-full bg-white border-l border-[#b4b4b4] shadow-[-4px_0_15px_rgba(0,0,0,0.05)] flex flex-col z-30 shrink-0">
       <div className="p-5 border-b border-gray-200 shrink-0">
         <h2 className="text-xl md:text-2xl font-bold text-black" style={{ fontFamily: "Raleway, sans-serif" }}>Shopping Cart</h2>
       </div>

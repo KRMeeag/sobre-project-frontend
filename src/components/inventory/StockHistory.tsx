@@ -9,9 +9,11 @@ import {
 } from "@heroicons/react/24/outline";
 import type { StockItem } from "../../types";
 import ConfirmDeleteStockModal from "./ConfirmDeleteStockModal";
-import StatCard from "../general/StatCard"; 
-import StockRow from "./StockRow"; 
-import { supabase } from "../../lib/supabase"; // <-- ADDED
+import StatCard from "../general/StatCard";
+import StockRow from "./StockRow";
+import { supabase } from "../../lib/supabase";
+import { getTomorrowDateString } from "../../utils/csvValidators";
+import { useAddStock } from "../../hooks/useAddStock";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -21,10 +23,7 @@ interface StockHistoryProps {
   onUpdate?: () => void;
 }
 
-const StockHistory = ({
-  inventoryId,
-  onUpdate,
-}: StockHistoryProps) => {
+const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loadingStocks, setIsLoadingStocks] = useState(false);
 
@@ -33,13 +32,31 @@ const StockHistory = ({
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [isAdding, setIsAdding] = useState(false);
-  const [addForm, setAddForm] = useState({ amount: "", expiry_date: "" });
-  const [isSavingAdd, setIsSavingAdd] = useState(false);
-
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ amount: "", expiry_date: "" });
+  // ADDED supplier to edit form state
+  const [editForm, setEditForm] = useState({
+    amount: "",
+    expiry_date: "",
+    supplier: "",
+  });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const {
+    isAdding,
+    setIsAdding,
+    form: addForm,
+    updateForm: updateAddForm,
+    isSaving: isSavingAdd,
+    isAmountValid,
+    isExpValid,
+    isSupplierValid, // DESTRUCTURED new validation flag
+    isValid: isAddFormValid,
+    submit: submitAdd,
+    cancel: cancelAdd,
+  } = useAddStock(inventoryId, () => {
+    fetchStock();
+    if (onUpdate) onUpdate();
+  });
 
   const formatDisplayDate = (dateString?: string | null) => {
     if (!dateString) return "N/A";
@@ -74,10 +91,11 @@ const StockHistory = ({
     let earliestExpiryDate: Date | null = null;
 
     stocks.forEach((stock) => {
-      totalAmount += stock.amount;
+      const safeAmount = Number(stock.amount || 0);
+      totalAmount += safeAmount;
       if (stock.expiry_date) {
         const expDate = new Date(stock.expiry_date);
-        if (expDate < today) expiredCount += stock.amount;
+        if (expDate < today) expiredCount += safeAmount;
         else if (!earliestExpiryDate || expDate < earliestExpiryDate)
           earliestExpiryDate = expDate;
       }
@@ -103,7 +121,9 @@ const StockHistory = ({
   const handleBulkDelete = async () => {
     setIsDeleting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
       await Promise.all(
@@ -123,30 +143,6 @@ const StockHistory = ({
     }
   };
 
-  const submitAdd = async () => {
-    if (!addForm.amount || !addForm.expiry_date)
-      return alert("Amount and Expiry Date required.");
-    setIsSavingAdd(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const userId = session?.user?.id || "";
-
-      await axios.post(`${API_URL}/stock?users_id=${userId}`, {
-        inventory_id: inventoryId,
-        amount: Number(addForm.amount),
-        expiry_date: addForm.expiry_date,
-      });
-      await fetchStock();
-      if (onUpdate) onUpdate();
-      setIsAdding(false);
-      setAddForm({ amount: "", expiry_date: "" });
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSavingAdd(false);
-    }
-  };
-
   const startEdit = (stock: StockItem) => {
     setEditingId(stock.id);
     setIsAdding(false);
@@ -155,20 +151,25 @@ const StockHistory = ({
       expiry_date: stock.expiry_date
         ? new Date(stock.expiry_date).toISOString().split("T")[0]
         : "",
+      supplier: stock.supplier || "", // LOAD existing supplier
     });
   };
 
   const submitEdit = async (id: string) => {
-    if (!editForm.amount || !editForm.expiry_date)
-      return alert("Amount and Expiry Date required.");
+    if (!editForm.amount) return alert("Amount is required.");
+    if (!editForm.supplier?.trim()) return alert("Supplier is required."); // STRICT check
+
     setIsSavingEdit(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
       await axios.patch(`${API_URL}/stock/${id}?users_id=${userId}`, {
         amount: Number(editForm.amount),
-        expiry_date: editForm.expiry_date,
+        expiry_date: editForm.expiry_date || null,
+        supplier: editForm.supplier.trim(), // INJECT payload
       });
       await fetchStock();
       if (onUpdate) onUpdate();
@@ -268,60 +269,76 @@ const StockHistory = ({
                 {isDeleteMode && (
                   <th className="py-3 px-4 w-[5%] text-center"></th>
                 )}
-                <th className="py-3 px-4 text-center w-[20%]">Barcode</th>
-                <th className="py-3 px-4 text-center w-[25%]">Stocked On</th>
+                {/* ADJUSTED width percentages for the new column */}
+                <th className="py-3 px-4 text-center w-[15%]">Barcode</th>
+                <th className="py-3 px-4 text-center w-[20%]">Stocked On</th>
+                <th className="py-3 px-4 text-center w-[20%]">Supplier</th>
                 <th className="py-3 px-4 text-center w-[15%]">Amount</th>
-                <th className="py-3 px-4 text-center w-[25%]">
+                <th className="py-3 px-4 text-center w-[15%]">
                   Expiration Date
                 </th>
                 {!isDeleteMode && (
-                  <th className="py-3 px-4 w-[15%] text-center">Action</th>
+                  <th className="py-3 px-4 w-[10%] text-center">Action</th>
                 )}
               </tr>
             </thead>
             <tbody className="text-[#223843] divide-y divide-gray-100">
               {isAdding && (
                 <tr className="bg-green-50/50">
+                  {isDeleteMode && <td className="py-2 px-4"></td>}
                   <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
                     Auto-generated
                   </td>
                   <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
                     Today
                   </td>
+                  {/* NEW Supplier Input Cell */}
+                  <td className="py-2 px-4">
+                    <input
+                      type="text"
+                      value={addForm.supplier}
+                      onChange={(e) =>
+                        updateAddForm("supplier", e.target.value)
+                      }
+                      className={`w-full border rounded px-2 py-1 text-center text-sm outline-none transition focus:ring-1 ${!isSupplierValid && addForm.supplier !== "" ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-[#2aa564] focus:ring-[#2aa564]"}`}
+                      placeholder="Supplier Name *"
+                    />
+                  </td>
                   <td className="py-2 px-4">
                     <input
                       type="number"
                       min="1"
                       value={addForm.amount}
-                      onChange={(e) =>
-                        setAddForm({ ...addForm, amount: e.target.value })
-                      }
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-center text-sm focus:outline-none focus:border-[#2aa564]"
+                      onChange={(e) => updateAddForm("amount", e.target.value)}
+                      className={`w-full border rounded px-2 py-1 text-center text-sm outline-none transition focus:ring-1 ${!isAmountValid && addForm.amount !== "" ? "border-red-400 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-[#2aa564] focus:ring-[#2aa564]"}`}
                       placeholder="Qty"
-                      autoFocus
                     />
                   </td>
                   <td className="py-2 px-4">
                     <input
                       type="date"
+                      min={getTomorrowDateString()}
                       value={addForm.expiry_date}
                       onChange={(e) =>
-                        setAddForm({ ...addForm, expiry_date: e.target.value })
+                        updateAddForm("expiry_date", e.target.value)
                       }
-                      className="w-full border border-gray-300 rounded px-2 py-1 text-center text-sm focus:outline-none focus:border-[#2aa564]"
+                      className={`w-full border rounded px-2 py-1 text-center text-sm outline-none transition focus:ring-1 ${!isExpValid ? "border-red-400 text-red-600 focus:border-red-500 focus:ring-red-500" : "border-gray-300 focus:border-[#2aa564] focus:ring-[#2aa564]"}`}
                     />
                   </td>
                   <td className="py-2 px-4 text-center">
                     <div className="flex justify-center gap-1">
                       <button
                         onClick={submitAdd}
-                        disabled={isSavingAdd}
-                        className="p-1.5 bg-[#2aa564] text-white rounded hover:bg-[#238f55] transition shadow-sm disabled:opacity-50"
+                        disabled={isSavingAdd || !isAddFormValid}
+                        className={`p-1.5 rounded transition shadow-sm ${isAddFormValid ? "bg-[#2aa564] text-white hover:bg-[#238f55]" : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"}`}
+                        title={
+                          isAddFormValid ? "Save Batch" : "Enter valid details"
+                        }
                       >
                         <CheckIcon className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setIsAdding(false)}
+                        onClick={cancelAdd}
                         disabled={isSavingAdd}
                         className="p-1.5 bg-white border border-gray-300 text-gray-600 rounded hover:bg-gray-100 transition shadow-sm disabled:opacity-50"
                       >
@@ -335,7 +352,7 @@ const StockHistory = ({
               {stocks.length === 0 && !isAdding && (
                 <tr>
                   <td
-                    colSpan={isDeleteMode ? 5 : 5}
+                    colSpan={isDeleteMode ? 7 : 6} // INCREASED colSpan by 1
                     className="py-12 text-center text-gray-500"
                   >
                     <ArchiveBoxXMarkIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />

@@ -8,6 +8,7 @@ import {
   ClockIcon,
   CalendarDaysIcon,
   HashtagIcon,
+  ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import DataTable from "../components/DataTable";
 
@@ -25,6 +26,7 @@ interface Receipt {
   subtotal: number;
   discount: number;
   total_price: number;
+  total_cost?: number; 
   total_items: number;
   users?: {
     username: string;
@@ -47,6 +49,12 @@ export default function SalesPage() {
   const [endDate, setEndDate] = useState("");
   const [itemsAmount, setItemsAmount] = useState("");
   const [discountFilter, setDiscountFilter] = useState("");
+
+  // --- NEW: Individual Timeframe States for Summary Cards ---
+  const [revenueRange, setRevenueRange] = useState("30days");
+  const [profitRange, setProfitRange] = useState("today");
+  const [costRange, setCostRange] = useState("today");
+  const [itemsRange, setItemsRange] = useState("all");
 
   useEffect(() => {
     const fetchSalesData = async () => {
@@ -94,11 +102,52 @@ export default function SalesPage() {
     });
   }, [receipts, searchQuery, startDate, endDate, startTime, endTime, itemsAmount, discountFilter]);
 
-  const totalProfit = filteredReceipts.reduce((sum, r) => sum + r.total_price, 0);
-  const totalItems = filteredReceipts.reduce((sum, r) => sum + r.total_items, 0);
+  // --- HELPER: Check if a date falls within the selected range ---
+  const isWithinRange = (dateString: string, range: string) => {
+    if (range === "all") return true;
+    
+    const date = new Date(dateString);
+    const now = new Date();
+    
+    if (range === "today") {
+      return (
+        date.getDate() === now.getDate() &&
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()
+      );
+    }
+    
+    const timeDiff = now.getTime() - date.getTime();
+    if (range === "7days") return timeDiff <= 7 * 24 * 60 * 60 * 1000;
+    if (range === "30days") return timeDiff <= 30 * 24 * 60 * 60 * 1000;
+    
+    return true;
+  };
+
+  // --- DYNAMIC INDIVIDUAL SUMMARY CALCULATIONS ---
+  const metrics = useMemo(() => {
+    let revenue = 0;
+    let profit = 0;
+    let cost = 0;
+    let items = 0;
+
+    receipts.forEach((r) => {
+      const rRevenue = r.total_price || 0;
+      const rCost = r.total_cost || 0;
+      const rProfit = rRevenue - rCost;
+      const rItems = r.total_items || 0;
+
+      if (isWithinRange(r.created_at, revenueRange)) revenue += rRevenue;
+      if (isWithinRange(r.created_at, profitRange)) profit += rProfit;
+      if (isWithinRange(r.created_at, costRange)) cost += rCost;
+      if (isWithinRange(r.created_at, itemsRange)) items += rItems;
+    });
+
+    return { revenue, profit, cost, items };
+  }, [receipts, revenueRange, profitRange, costRange, itemsRange]);
 
   const formatCurrency = (amount: number) => `P${amount.toFixed(2)}`;
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   const formatTime = (dateString: string) => new Date(dateString).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
   const InfoHeaderIcon = <div className="w-6 h-6 bg-[#ada7a7] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center mx-auto shadow-sm">i</div>;
@@ -114,17 +163,35 @@ export default function SalesPage() {
           <p className="text-gray-500 text-sm">Monitor your store's performance and transactions</p>
         </div>
 
+        {/* --- DYNAMIC SUMMARY CARDS --- */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
-          <SummaryCard title="This Month's Profit" value={formatCurrency(totalProfit)} />
-          <SummaryCard title="Today's Net Profit" value="P5021.16" />
-          <SummaryCard title="Today's Cost" value="P2546.78" />
-          <SummaryCard title="Total Items Sold" value={totalItems.toString()} />
+          <SummaryCard 
+            title="Revenue" 
+            value={formatCurrency(metrics.revenue)} 
+            range={revenueRange} 
+            onRangeChange={setRevenueRange} 
+          />
+          <SummaryCard 
+            title="Net Profit" 
+            value={formatCurrency(metrics.profit)} 
+            range={profitRange} 
+            onRangeChange={setProfitRange} 
+          />
+          <SummaryCard 
+            title="Total Cost" 
+            value={formatCurrency(metrics.cost)} 
+            range={costRange} 
+            onRangeChange={setCostRange} 
+          />
+          <SummaryCard 
+            title="Items Sold" 
+            value={metrics.items.toString()} 
+            range={itemsRange} 
+            onRangeChange={setItemsRange} 
+          />
         </div>
 
-        {/* --- RESTRUCTURED FILTER SECTION --- */}
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0 w-full">
-          
-          {/* LEFT GROUP: Search, Time, and Date grouped closely together */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative w-full sm:w-72 h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
               <input 
@@ -148,7 +215,6 @@ export default function SalesPage() {
             </div>
           </div>
 
-          {/* RIGHT GROUP: Items and Discount (Made wider and more prominent) */}
           <div className="flex flex-wrap items-center gap-3">
             <div className="relative h-11 w-full sm:w-44 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
               <input 
@@ -172,11 +238,10 @@ export default function SalesPage() {
               <span className="absolute right-3 pointer-events-none text-gray-400 font-bold text-[14px]">%</span>
             </div>
           </div>
-
         </div>
 
         <DataTable 
-          headers={["Date", "Time", "User", "Invoice Number", "Subtotal", "Discount", "Total Price", "Items Amount", InfoHeaderIcon]}
+          headers={["Date", "Time", "User", <span className="whitespace-nowrap px-2 block">Invoice Number</span>, "Subtotal", "Discount", <span className="whitespace-nowrap px-2 block">Total Price</span>, <span className="whitespace-nowrap px-2 block">Items Amount</span>, InfoHeaderIcon]}
           loading={loading}
           empty={filteredReceipts.length === 0}
           emptyMessage="No sales match your search filters."
@@ -188,19 +253,19 @@ export default function SalesPage() {
                 key={r.id} 
                 className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfc]"}`}
               >
-                <td className="p-4 text-center text-gray-500">{formatDate(r.created_at)}</td>
-                <td className="p-4 text-center text-gray-500">{formatTime(r.created_at)}</td>
+                <td className="p-4 text-center text-gray-500 whitespace-nowrap">{formatDate(r.created_at)}</td>
+                <td className="p-4 text-center text-gray-500 whitespace-nowrap">{formatTime(r.created_at)}</td>
                 
                 <td className="p-4">
                   <div className="flex items-center justify-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden">
                       {r.users?.photo ? <img src={r.users.photo} alt="avatar" className="w-full h-full object-cover" /> : <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 mt-1"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>}
                     </div>
-                    <span className="font-bold text-[#223843]">{r.users?.username || "Unknown"}</span>
+                    <span className="font-bold text-[#223843] whitespace-nowrap">{r.users?.username || "Unknown"}</span>
                   </div>
                 </td>
 
-                <td className="p-4 text-center text-gray-500">{r.invoice_no}</td>
+                <td className="p-4 text-center text-gray-500 truncate max-w-[120px] sm:max-w-[160px]" title={r.invoice_no}>{r.invoice_no}</td>
                 <td className="p-4 text-center text-gray-500">{formatCurrency(r.subtotal)}</td>
                 <td className="p-4 text-center text-gray-500">{discountPercentage}%</td>
                 <td className="p-4 font-bold text-[#223843] text-center">{formatCurrency(r.total_price)}</td>
@@ -224,11 +289,34 @@ export default function SalesPage() {
   );
 }
 
-function SummaryCard({ title, value }: { title: string; value: string }) {
+// --- UPDATED SUMMARY CARD WITH DROPDOWN ---
+interface SummaryCardProps {
+  title: string;
+  value: string;
+  range: string;
+  onRangeChange: (range: string) => void;
+}
+
+function SummaryCard({ title, value, range, onRangeChange }: SummaryCardProps) {
   return (
-    <div className="bg-white px-6 py-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center border border-gray-200 transition-shadow hover:shadow-md">
-      <h3 className="text-[#a1a1aa] text-[15px] font-medium mb-3 tracking-wide">{title}</h3>
-      <p className="text-[32px] font-bold text-[#004385] font-['Arvo']">{value}</p>
+    <div className="bg-white px-5 py-6 rounded-2xl shadow-sm flex flex-col justify-center border border-gray-200 transition-shadow hover:shadow-md relative">
+      <div className="flex justify-between items-center w-full mb-3">
+        <h3 className="text-[#a1a1aa] text-[13px] font-bold tracking-wide uppercase">{title}</h3>
+        <div className="relative">
+          <select 
+            value={range} 
+            onChange={(e) => onRangeChange(e.target.value)}
+            className="appearance-none bg-blue-50 text-[#087CA7] text-[11px] font-bold py-1 pl-2 pr-6 rounded outline-none cursor-pointer hover:bg-blue-100 transition-colors"
+          >
+            <option value="today">Today</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="all">All Time</option>
+          </select>
+          <ChevronDownIcon className="w-3 h-3 absolute right-2 top-1.5 pointer-events-none text-[#087CA7]" strokeWidth={3} />
+        </div>
+      </div>
+      <p className="text-[32px] font-bold text-[#004385] font-['Arvo'] text-center mt-1">{value}</p>
     </div>
   );
 }
@@ -244,7 +332,7 @@ interface DynamicFilterInputProps {
 
 function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }: DynamicFilterInputProps) {
   return (
-    <div className={`relative flex items-center w-36 sm:w-40 px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
+    <div className={`relative flex items-center w-32 sm:w-36 px-3 ${borderRight ? 'border-r border-gray-300' : ''}`}>
       <input
         type={type === "date" && !value ? "text" : type === "time" && !value ? "text" : type}
         placeholder={label}
@@ -252,7 +340,7 @@ function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }:
         onChange={onChange}
         onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target.type = type)}
         onBlur={(e: React.FocusEvent<HTMLInputElement>) => { if (!e.target.value) e.target.type = "text"; }}
-        className="w-full bg-transparent outline-none text-[14px] text-gray-700 placeholder-gray-400 cursor-pointer"
+        className="w-full bg-transparent outline-none text-[13px] text-gray-700 placeholder-gray-400 cursor-pointer"
       />
       <div className="absolute right-3 flex items-center justify-center text-gray-400 pointer-events-none bg-white pl-1">
         {icon}
