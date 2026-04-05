@@ -68,7 +68,9 @@ const POSPage = () => {
   // --- NEW SCANNER STATES ---
   const [isScanning, setIsScanning] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
-  const lastScanTime = useRef<number>(0);
+  
+  // FIXED: A dictionary that remembers EXACTLY when each specific item was last scanned
+  const lastScannedItems = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -146,21 +148,26 @@ const POSPage = () => {
   };
 
   // ==========================================
-  // QR SCAN HANDLER (1-Second Throttle & Flash)
+  // QR SCAN HANDLER (Smart Same-Item Cooldown)
   // ==========================================
   const handleQRScan = async (decodedText: string) => {
-    const now = Date.now();
-    // Throttle scans to exactly 1 per second
-    if (now - lastScanTime.current < 1000) return; 
-
     try {
+      // 1. Extract the barcode first so we know WHAT we are looking at
       let barcode = decodedText;
       try {
         const parsed = JSON.parse(decodedText);
         barcode = parsed.barcode || parsed.sku || decodedText;
       } catch(e) { }
 
-      lastScanTime.current = now; // Lock immediately
+      const now = Date.now();
+      const lastTimeScanned = lastScannedItems.current[barcode] || 0;
+
+      // 2. THE MAGIC: If this EXACT item was scanned in the last 3 seconds, ignore it!
+      // (This prevents the 10-frames-per-second rapid fire)
+      if (now - lastTimeScanned < 3000) return; 
+
+      // 3. Immediately log the timestamp for this item so the next camera frame ignores it
+      lastScannedItems.current[barcode] = now;
 
       const response = await axios.get(`${API_URL}/inventory/scan`, {
         params: { barcode, store_id: storeId }
@@ -219,8 +226,8 @@ const POSPage = () => {
 
     } catch (err) {
       console.error("Scan error:", err);
-      // Toast error if it's an unrecognized barcode
-      toast.error("Barcode not recognized");
+      // Optional: Prevent toast spam if it's reading a random non-inventory QR code
+      // toast.error("Barcode not recognized");
     }
   };
 
