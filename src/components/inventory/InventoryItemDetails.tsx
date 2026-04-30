@@ -183,6 +183,7 @@ const InventoryItemDetails = ({
         </div>
       </div>
 
+      {/* RESTORED: Fixed gap and heights to properly utilize the 1000px space */}
       <div className="flex gap-6 mb-8 h-48">
         <div className="w-48 h-48 shrink-0 flex items-center justify-center">
           {isEditing ? (
@@ -213,6 +214,7 @@ const InventoryItemDetails = ({
           )}
         </div>
 
+        {/* RESTORED: Fixed grid-cols-4 */}
         <div className="flex-1 grid grid-cols-4 grid-rows-3 gap-x-4 gap-y-2 h-full content-between">
           <DetailField
             label="Display Name"
@@ -248,7 +250,7 @@ const InventoryItemDetails = ({
           />
 
           <DetailField
-            label="Primary Supplier" 
+            label="Primary Supplier"
             name="primary_supplier"
             value={formData.primary_supplier}
             onChange={handleChange}
@@ -328,8 +330,8 @@ const InventoryItemDetails = ({
       <StockHistory
         inventoryId={item.id}
         itemName={item.name}
-        sku={item.sku || ""} // NEW
-        storeId={item.store_id || ""} // NEW
+        sku={item.sku || ""}
+        storeId={item.store_id || ""}
         onUpdate={onUpdate}
       />
     </div>

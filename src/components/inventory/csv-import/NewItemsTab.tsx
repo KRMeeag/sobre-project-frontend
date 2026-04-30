@@ -30,8 +30,9 @@ export default function NewItemsTab({
           Category and Selling Price for these new products before confirming.
         </p>
       </div>
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-visible">
-        <table className="w-full text-left text-sm">
+      {/* Change this: <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-visible"> */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-x-auto w-full">
+        <table className="w-full text-left text-sm min-w-[900px]">
           <thead className="bg-[#f8f9fa] text-[#033860] uppercase tracking-wider font-bold border-b border-gray-200">
             <tr>
               <th className="p-3 text-left w-[25%]">Goods</th>

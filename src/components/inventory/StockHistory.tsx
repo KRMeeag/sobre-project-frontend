@@ -26,7 +26,13 @@ interface StockHistoryProps {
   onUpdate?: () => void;
 }
 
-const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHistoryProps) => {
+const StockHistory = ({
+  inventoryId,
+  itemName,
+  sku,
+  storeId,
+  onUpdate,
+}: StockHistoryProps) => {
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loadingStocks, setIsLoadingStocks] = useState(false);
 
@@ -42,7 +48,10 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
     supplier: "",
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
-  const [qrPayload, setQrPayload] = useState<{ payload: string; barcode: string } | null>(null);
+  const [qrPayload, setQrPayload] = useState<{
+    payload: string;
+    barcode: string;
+  } | null>(null);
 
   const {
     isAdding,
@@ -52,7 +61,7 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
     isSaving: isSavingAdd,
     isAmountValid,
     isExpValid,
-    isSupplierValid, 
+    isSupplierValid,
     isValid: isAddFormValid,
     submit: submitAdd,
     cancel: cancelAdd,
@@ -131,7 +140,9 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
 
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          axios.delete(`${API_URL}/stock/${id}?users_id=${userId}&store_id=${storeId}`),
+          axios.delete(
+            `${API_URL}/stock/${id}?users_id=${userId}&store_id=${storeId}`,
+          ),
         ),
       );
       await fetchStock();
@@ -160,7 +171,7 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
 
   const submitEdit = async (id: string) => {
     if (!editForm.amount) return alert("Amount is required.");
-    if (!editForm.supplier?.trim()) return alert("Supplier is required."); 
+    if (!editForm.supplier?.trim()) return alert("Supplier is required.");
 
     setIsSavingEdit(true);
     try {
@@ -169,11 +180,14 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
       } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
-      await axios.patch(`${API_URL}/stock/${id}?users_id=${userId}&store_id=${storeId}`, {
-        amount: Number(editForm.amount),
-        expiry_date: editForm.expiry_date || null,
-        supplier: editForm.supplier.trim(),
-      });
+      await axios.patch(
+        `${API_URL}/stock/${id}?users_id=${userId}&store_id=${storeId}`,
+        {
+          amount: Number(editForm.amount),
+          expiry_date: editForm.expiry_date || null,
+          supplier: editForm.supplier.trim(),
+        },
+      );
       await fetchStock();
       if (onUpdate) onUpdate();
       setEditingId(null);
@@ -265,8 +279,8 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004385]"></div>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden shadow-sm">
-          <table className="w-full text-sm text-center">
+        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto shadow-sm w-full">
+          <table className="w-full text-sm text-center min-w-[800px]">
             <thead className="bg-[#f8f9fa] text-[#033860] text-xs uppercase tracking-wider font-bold border-b border-gray-200">
               <tr>
                 {isDeleteMode && (
@@ -389,7 +403,7 @@ const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHi
                     };
                     setQrPayload({
                       payload: JSON.stringify(payloadObj),
-                      barcode: barcode || "N/A"
+                      barcode: barcode || "N/A",
                     });
                   }}
                 />
