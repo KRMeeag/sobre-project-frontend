@@ -187,7 +187,7 @@ const InventoryItemDetails = ({
       <div className="flex gap-6 mb-8 h-48">
         <div className="w-48 h-48 shrink-0 flex items-center justify-center">
           {isEditing ? (
-            <div className="-mt-6">
+            <div className="mt-6">
               <FileUploadDropzone
                 onFileDrop={handleFileDrop}
                 previewUrl={photoPreview}
