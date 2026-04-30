@@ -334,7 +334,7 @@ const InventoryPage = () => {
                       isDeleteMode={isDeleteMode}
                       isSelected={selectedIds.has(item.id)}
                       onToggleSelect={handleToggleSelect}
-                      onUpdate={() => fetchInventory(apiParams)}
+                      onUpdate={() => fetchInventory(apiParams, true)}
                     />
                   ))
                 )}

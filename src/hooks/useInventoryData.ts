@@ -21,17 +21,19 @@ export function useInventoryData() {
   useEffect(() => {
     const fetchUserAndStore = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (!user) {
           setLoading(false); // FIX: Stop loading if not authenticated
           return;
         }
-        
+
         setUserId(user.id);
-        
+
         const userRes = await axios.get(`${API_URL}/users/${user.id}`);
         const fetchedStoreId = userRes.data?.store_id || null;
-        
+
         setStoreId(fetchedStoreId);
 
         // FIX: If the user exists but has no store_id, stop the spinner.
@@ -40,13 +42,12 @@ export function useInventoryData() {
           setLoading(false);
           console.warn("User has no store_id assigned.");
         }
-
       } catch (err) {
         console.error("Failed to load user store_id:", err);
         setLoading(false); // FIX: Stop loading if the API request crashes
       }
     };
-    
+
     fetchUserAndStore();
   }, []);
 
@@ -85,12 +86,15 @@ export function useInventoryData() {
 
   // 3. Fetch Core Inventory Data
   const fetchInventory = useCallback(
-    async (params: Record<string, any> = {}) => {
+    async (params: Record<string, any> = {}, silent: boolean = false) => {
       // --- CRITICAL FIX 1: Abort if store identity isn't loaded yet ---
       if (!storeId) return;
 
       try {
-        setLoading(true);
+        // ONLY trigger the loading spinner if this is NOT a silent fetch
+        if (!silent) {
+          setLoading(true);
+        }
 
         // --- CRITICAL FIX 2: Inject store_id into all outgoing requests ---
         const requestParams = {
@@ -111,11 +115,14 @@ export function useInventoryData() {
         console.error("Failed to load inventory", err);
         throw err;
       } finally {
-        setLoading(false);
+        // Only turn off the spinner if we actually turned it on
+        if (!silent) {
+          setLoading(false);
+        }
       }
     },
     [storeId],
-  ); // --- CRITICAL FIX 3: Add storeId to the dependency array ---
+  );
 
   return {
     inventory,
