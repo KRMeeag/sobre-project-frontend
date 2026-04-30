@@ -136,9 +136,7 @@ export default function ImportWizardModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm font-['Work_Sans'] p-4 overflow-y-auto">
-      {/* 2. REMOVED h-[85vh] and overflow-hidden. ADDED my-auto and relative */}
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl my-auto relative flex flex-col animate-in zoom-in-95 duration-200">
-        
         {/* Header */}
         <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-[#f8f9fa] shrink-0 rounded-t-xl">
           <h2 className="text-2xl font-bold text-[#004385] flex items-center gap-2">
@@ -160,12 +158,10 @@ export default function ImportWizardModal({
         )}
 
         {/* Body */}
-        {/* 3. REMOVED overflow-hidden here */}
-        <div className="flex-1 flex flex-col bg-gray-50">
-          
+        <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
           {/* STEP 1: Upload */}
           {!hasParsedData && !isParsing && (
-            <div className="p-10 flex flex-col items-center justify-center">
+            <div className="p-10 flex flex-col items-center justify-center overflow-y-auto">
               <div className="w-full max-w-lg bg-white p-8 rounded-xl shadow-sm border border-gray-200">
                 <div className="mb-6 z-20 relative">
                   <ComboboxInput
@@ -193,12 +189,16 @@ export default function ImportWizardModal({
                       setDragActive(false);
                       handleFileChange(e.dataTransfer.files?.[0]);
                     }}
-                    className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition ${dragActive ? "border-[#087CA7] bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}`}
+                    className={`flex flex-col items-center justify-center w-full h-40 border-2 border-dashed rounded-xl cursor-pointer transition overflow-hidden px-4 ${dragActive ? "border-[#087CA7] bg-blue-50" : "border-gray-300 bg-gray-50 hover:bg-gray-100"}`}
                   >
                     {pendingFile ? (
-                      <div className="flex flex-col items-center">
-                        <CheckCircleIcon className="w-10 h-10 text-green-500 mb-2" />
-                        <p className="text-sm font-bold text-center">
+                      <div className="flex flex-col items-center w-full">
+                        <CheckCircleIcon className="w-10 h-10 text-green-500 mb-2 shrink-0" />
+                        {/* FIX: Truncate long file names inside the dropzone */}
+                        <p
+                          className="text-sm font-bold text-center w-full truncate px-2"
+                          title={pendingFile.name}
+                        >
                           {pendingFile.name}
                         </p>
                         <button
@@ -206,7 +206,7 @@ export default function ImportWizardModal({
                             e.preventDefault();
                             setPendingFile(null);
                           }}
-                          className="mt-3 text-xs text-red-500 hover:text-white font-bold px-3 py-1 border border-red-200 hover:bg-red-500 rounded-full flex items-center gap-1"
+                          className="mt-3 text-xs text-red-500 hover:text-white font-bold px-3 py-1 border border-red-200 hover:bg-red-500 rounded-full flex items-center gap-1 shrink-0"
                         >
                           <XMarkIcon className="w-3 h-3" /> Remove File
                         </button>
@@ -248,18 +248,18 @@ export default function ImportWizardModal({
 
           {/* STEP 3: Review */}
           {hasParsedData && !isParsing && (
-            <div className="flex-1 flex flex-col">
-              {/* Tab Nav */}
-              <div className="flex border-b border-gray-200 bg-white px-6 shrink-0">
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* FIX: Tab Nav Container - added overflow-x-auto and whitespace-nowrap */}
+              <div className="flex overflow-x-auto border-b border-gray-200 bg-white px-6 shrink-0 custom-scrollbar whitespace-nowrap">
                 <button
                   onClick={() => setActiveTab("summary")}
-                  className={`px-4 py-4 font-bold text-sm border-b-2 ${activeTab === "summary" ? "border-[#004385] text-[#004385]" : "border-transparent text-gray-500"}`}
+                  className={`shrink-0 px-4 py-4 font-bold text-sm border-b-2 ${activeTab === "summary" ? "border-[#004385] text-[#004385]" : "border-transparent text-gray-500"}`}
                 >
                   Summary
                 </button>
                 <button
                   onClick={() => setActiveTab("errors")}
-                  className={`px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "errors" ? "border-red-500 text-red-600" : "border-transparent text-gray-500"}`}
+                  className={`shrink-0 px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "errors" ? "border-red-500 text-red-600" : "border-transparent text-gray-500"}`}
                 >
                   Errors{" "}
                   <span className="bg-red-100 text-red-600 px-2 rounded-full text-xs">
@@ -269,7 +269,7 @@ export default function ImportWizardModal({
                 {localDiscarded.length > 0 && (
                   <button
                     onClick={() => setActiveTab("discarded")}
-                    className={`px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "discarded" ? "border-gray-500 text-gray-700" : "border-transparent text-gray-500"}`}
+                    className={`shrink-0 px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "discarded" ? "border-gray-500 text-gray-700" : "border-transparent text-gray-500"}`}
                   >
                     Discarded{" "}
                     <span className="bg-gray-100 text-gray-600 px-2 rounded-full text-xs">
@@ -279,7 +279,7 @@ export default function ImportWizardModal({
                 )}
                 <button
                   onClick={() => setActiveTab("updates")}
-                  className={`px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "updates" ? "border-[#087CA7] text-[#087CA7]" : "border-transparent text-gray-500"}`}
+                  className={`shrink-0 px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "updates" ? "border-[#087CA7] text-[#087CA7]" : "border-transparent text-gray-500"}`}
                 >
                   Updates{" "}
                   <span className="bg-blue-100 text-blue-600 px-2 rounded-full text-xs">
@@ -288,7 +288,7 @@ export default function ImportWizardModal({
                 </button>
                 <button
                   onClick={() => setActiveTab("newItems")}
-                  className={`px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "newItems" ? "border-[#2aa564] text-[#2aa564]" : "border-transparent text-gray-500"}`}
+                  className={`shrink-0 px-4 py-4 font-bold text-sm border-b-2 flex items-center gap-1 ${activeTab === "newItems" ? "border-[#2aa564] text-[#2aa564]" : "border-transparent text-gray-500"}`}
                 >
                   New Items{" "}
                   <span className="bg-green-100 text-green-600 px-2 rounded-full text-xs">
@@ -298,10 +298,9 @@ export default function ImportWizardModal({
               </div>
 
               {/* Tab Contents */}
-              {/* 4. REMOVED overflow-y-auto here to allow breakout */}
-              <div className="p-6">
+              <div className="p-6 overflow-y-auto">
                 {activeTab === "summary" && (
-                  <div className="grid grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-xl border border-red-200 flex flex-col items-center">
                       <ExclamationTriangleIcon className="w-10 h-10 text-red-500 mb-2" />
                       <h3 className="text-3xl font-bold">
@@ -344,80 +343,84 @@ export default function ImportWizardModal({
                 )}
 
                 {activeTab === "updates" && (
-                  <table className="w-full text-left bg-white rounded-lg border border-gray-200">
-                    <thead className="bg-blue-50 text-blue-800 text-[11px] uppercase border-b border-blue-200">
-                      <tr>
-                        <th className="p-3">Goods</th>
-                        <th className="p-3 text-center">New Stock</th>
-                        <th className="p-3 text-center">Cost</th>
-                        <th className="p-3 text-center">Expiry</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                      {localUpdates.length === 0 ? (
+                  <div className="overflow-x-auto w-full border border-gray-200 rounded-lg">
+                    <table className="w-full text-left bg-white min-w-[600px]">
+                      <thead className="bg-blue-50 text-blue-800 text-[11px] uppercase border-b border-blue-200">
                         <tr>
-                          <td
-                            colSpan={4}
-                            className="p-6 text-center text-gray-500"
-                          >
-                            No updates.
-                          </td>
+                          <th className="p-3">Goods</th>
+                          <th className="p-3 text-center">New Stock</th>
+                          <th className="p-3 text-center">Cost</th>
+                          <th className="p-3 text-center">Expiry</th>
                         </tr>
-                      ) : (
-                        localUpdates.map((u, i) => (
-                          <tr key={i} className="border-b">
-                            <td className="p-3">{u.name}</td>
-                            <td className="p-3 text-center text-blue-600 font-bold">
-                              +{u.amount}
-                            </td>
-                            <td className="p-3 text-center">
-                              ₱{u.cost.toFixed(2)}
-                            </td>
-                            <td className="p-3 text-center">
-                              {u.expiryDate
-                                ? formatDate(u.expiryDate, "long")
-                                : "N/A"}
+                      </thead>
+                      <tbody className="text-sm">
+                        {localUpdates.length === 0 ? (
+                          <tr>
+                            <td
+                              colSpan={4}
+                              className="p-6 text-center text-gray-500"
+                            >
+                              No updates.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          localUpdates.map((u, i) => (
+                            <tr key={i} className="border-b">
+                              <td className="p-3">{u.name}</td>
+                              <td className="p-3 text-center text-blue-600 font-bold">
+                                +{u.amount}
+                              </td>
+                              <td className="p-3 text-center">
+                                ₱{u.cost.toFixed(2)}
+                              </td>
+                              <td className="p-3 text-center">
+                                {u.expiryDate
+                                  ? formatDate(u.expiryDate, "long")
+                                  : "N/A"}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
 
                 {activeTab === "discarded" && (
-                  <table className="w-full text-left bg-white rounded-lg border border-gray-200 opacity-70">
-                    <thead className="bg-gray-50 text-gray-600 text-[11px] uppercase border-b border-gray-200">
-                      <tr>
-                        <th className="p-3">Goods</th>
-                        <th className="p-3 text-center">Stock</th>
-                        <th className="p-3 text-center">Cost</th>
-                        <th className="p-3 text-center">Restore</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm">
-                      {localDiscarded.map((d, i) => (
-                        <tr key={i} className="border-b">
-                          <td className="p-3">{d.name}</td>
-                          <td className="p-3 text-center">{d.amount}</td>
-                          <td className="p-3 text-center">₱{d.cost}</td>
-                          <td className="p-3 text-center text-gray-500">
-                            {d.expiryDate
-                              ? formatDate(d.expiryDate, "long")
-                              : "N/A"}
-                          </td>
-                          <td className="p-3 text-center">
-                            <button
-                              onClick={() => handleRestoreError(i)}
-                              className="p-1.5 bg-white border border-gray-300 rounded hover:bg-blue-50 mx-auto block"
-                            >
-                              <ArrowUturnLeftIcon className="w-4 h-4" />
-                            </button>
-                          </td>
+                  <div className="overflow-x-auto w-full border border-gray-200 rounded-lg opacity-70">
+                    <table className="w-full text-left bg-white min-w-[600px]">
+                      <thead className="bg-gray-50 text-gray-600 text-[11px] uppercase border-b border-gray-200">
+                        <tr>
+                          <th className="p-3">Goods</th>
+                          <th className="p-3 text-center">Stock</th>
+                          <th className="p-3 text-center">Cost</th>
+                          <th className="p-3 text-center">Restore</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="text-sm">
+                        {localDiscarded.map((d, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="p-3">{d.name}</td>
+                            <td className="p-3 text-center">{d.amount}</td>
+                            <td className="p-3 text-center">₱{d.cost}</td>
+                            <td className="p-3 text-center text-gray-500">
+                              {d.expiryDate
+                                ? formatDate(d.expiryDate, "long")
+                                : "N/A"}
+                            </td>
+                            <td className="p-3 text-center">
+                              <button
+                                onClick={() => handleRestoreError(i)}
+                                className="p-1.5 bg-white border border-gray-300 rounded hover:bg-blue-50 mx-auto block"
+                              >
+                                <ArrowUturnLeftIcon className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </div>

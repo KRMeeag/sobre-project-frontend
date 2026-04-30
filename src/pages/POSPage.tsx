@@ -8,7 +8,7 @@ import POSHeader from "../components/pos/POSHeader";
 import POSCategories from "../components/pos/POSCategories";
 import ProductGrid from "../components/pos/ProductGrid";
 import CartPanel from "../components/pos/CartPanel";
-import QRScanner from "../components/pos/QRScanner"; 
+import QRScanner from "../components/pos/QRScanner";
 import toast from "react-hot-toast";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -58,7 +58,9 @@ const POSPage = () => {
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [discountPercent, setDiscountPercent] = useState<number | "">(0);
-  const [variationQuantities, setVariationQuantities] = useState<Record<string, number>>({});
+  const [variationQuantities, setVariationQuantities] = useState<
+    Record<string, number>
+  >({});
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [tenderedAmount, setTenderedAmount] = useState<number | "">("");
 
@@ -68,14 +70,16 @@ const POSPage = () => {
   // --- NEW SCANNER STATES ---
   const [isScanning, setIsScanning] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
-  
+
   // FIXED: A dictionary that remembers EXACTLY when each specific item was last scanned
   const lastScannedItems = useRef<Record<string, number>>({});
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
           setAuthUserId(user.id);
           const res = await axios.get(`${API_URL}/users/${user.id}`);
@@ -97,7 +101,7 @@ const POSPage = () => {
     const fetchCategories = async () => {
       try {
         const response = await axios.get(`${API_URL}/inventory/categories`, {
-          params: { store_id: storeId }
+          params: { store_id: storeId },
         });
         const mappedCategories = response.data.map((c: any) => c.category);
         setCategories(["All", ...mappedCategories]);
@@ -117,10 +121,14 @@ const POSPage = () => {
       try {
         const params = new URLSearchParams({ limit: "50", store_id: storeId });
         if (activeCategory !== "All") params.append("category", activeCategory);
-        if (searchQuery.trim() !== "") params.append("search", searchQuery.trim());
+        if (searchQuery.trim() !== "")
+          params.append("search", searchQuery.trim());
 
-        const response = await fetch(`${API_URL}/inventory?${params.toString()}`);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const response = await fetch(
+          `${API_URL}/inventory?${params.toString()}`,
+        );
+        if (!response.ok)
+          throw new Error(`HTTP error! status: ${response.status}`);
 
         const result = await response.json();
         setProducts(result && Array.isArray(result.data) ? result.data : []);
@@ -131,7 +139,9 @@ const POSPage = () => {
       }
     };
 
-    const timeoutId = setTimeout(() => { fetchInventory(); }, 300);
+    const timeoutId = setTimeout(() => {
+      fetchInventory();
+    }, 300);
     return () => clearTimeout(timeoutId);
   }, [activeCategory, searchQuery, storeId]);
 
@@ -144,7 +154,11 @@ const POSPage = () => {
 
   const getTotalAvailableStock = (product: Product) => {
     if (!product.stock) return 0;
-    return product.stock.reduce((total, s) => total + Math.max(0, s.amount - getQtyInCart(product.id, s.id)), 0);
+    return product.stock.reduce(
+      (total, s) =>
+        total + Math.max(0, s.amount - getQtyInCart(product.id, s.id)),
+      0,
+    );
   };
 
   // ==========================================
@@ -157,20 +171,20 @@ const POSPage = () => {
       try {
         const parsed = JSON.parse(decodedText);
         barcode = parsed.barcode || parsed.sku || decodedText;
-      } catch(e) { }
+      } catch (e) {}
 
       const now = Date.now();
       const lastTimeScanned = lastScannedItems.current[barcode] || 0;
 
       // 2. THE MAGIC: If this EXACT item was scanned in the last 3 seconds, ignore it!
       // (This prevents the 10-frames-per-second rapid fire)
-      if (now - lastTimeScanned < 3000) return; 
+      if (now - lastTimeScanned < 3000) return;
 
       // 3. Immediately log the timestamp for this item so the next camera frame ignores it
       lastScannedItems.current[barcode] = now;
 
       const response = await axios.get(`${API_URL}/inventory/scan`, {
-        params: { barcode, store_id: storeId }
+        params: { barcode, store_id: storeId },
       });
 
       const { product, scannedStock } = response.data;
@@ -184,37 +198,52 @@ const POSPage = () => {
 
       // Add exactly 1 unit of this specific variation directly to cart
       setCart((prevCart) => {
-        const existingItemIndex = prevCart.findIndex((item) => item.productId === product.id);
+        const existingItemIndex = prevCart.findIndex(
+          (item) => item.productId === product.id,
+        );
 
         if (existingItemIndex >= 0) {
           const updatedCart = [...prevCart];
           const item = updatedCart[existingItemIndex];
           const mergedVariations = [...item.variations];
-          
-          const varIndex = mergedVariations.findIndex((v) => v.stockId === scannedStock.id);
-          if (varIndex >= 0) mergedVariations[varIndex].quantity += 1;
-          else mergedVariations.push({ stockId: scannedStock.id, variationCode: scannedStock.barcode, quantity: 1 });
 
-          updatedCart[existingItemIndex] = { 
-            ...item, 
-            totalQuantity: item.totalQuantity + 1, 
+          const varIndex = mergedVariations.findIndex(
+            (v) => v.stockId === scannedStock.id,
+          );
+          if (varIndex >= 0) mergedVariations[varIndex].quantity += 1;
+          else
+            mergedVariations.push({
+              stockId: scannedStock.id,
+              variationCode: scannedStock.barcode,
+              quantity: 1,
+            });
+
+          updatedCart[existingItemIndex] = {
+            ...item,
+            totalQuantity: item.totalQuantity + 1,
             variations: mergedVariations,
             discount: product.discount || 0,
-            photo: product.photo
+            photo: product.photo,
           };
           return updatedCart;
         } else {
           return [
-            ...prevCart, 
-            { 
-              productId: product.id, 
-              name: product.name, 
-              price: product.price, 
-              discount: product.discount || 0, 
+            ...prevCart,
+            {
+              productId: product.id,
+              name: product.name,
+              price: product.price,
+              discount: product.discount || 0,
               photo: product.photo,
-              totalQuantity: 1, 
-              variations: [{ stockId: scannedStock.id, variationCode: scannedStock.barcode, quantity: 1 }] 
-            }
+              totalQuantity: 1,
+              variations: [
+                {
+                  stockId: scannedStock.id,
+                  variationCode: scannedStock.barcode,
+                  quantity: 1,
+                },
+              ],
+            },
           ];
         }
       });
@@ -223,7 +252,6 @@ const POSPage = () => {
       setScanFlash(true);
       setTimeout(() => setScanFlash(false), 250);
       toast.success(`Scanned: ${product.name}`);
-
     } catch (err) {
       console.error("Scan error:", err);
       // Optional: Prevent toast spam if it's reading a random non-inventory QR code
@@ -235,12 +263,18 @@ const POSPage = () => {
     setSelectedProduct(product);
     const initialQtys: Record<string, number> = {};
     if (product.stock) {
-      product.stock.forEach((stockItem) => { initialQtys[stockItem.id] = 0; });
+      product.stock.forEach((stockItem) => {
+        initialQtys[stockItem.id] = 0;
+      });
     }
     setVariationQuantities(initialQtys);
   };
 
-  const updateVariationQty = (stockId: string, delta: number, maxAmount: number) => {
+  const updateVariationQty = (
+    stockId: string,
+    delta: number,
+    maxAmount: number,
+  ) => {
     setVariationQuantities((prev) => {
       const currentQty = prev[stockId] || 0;
       const newQty = Math.max(0, Math.min(currentQty + delta, maxAmount));
@@ -252,20 +286,30 @@ const POSPage = () => {
     if (!selectedProduct || !selectedProduct.stock) return;
 
     let addedTotal = 0;
-    const addedVariations: { stockId: string; variationCode: string; quantity: number; }[] = [];
+    const addedVariations: {
+      stockId: string;
+      variationCode: string;
+      quantity: number;
+    }[] = [];
 
     selectedProduct.stock.forEach((stockItem) => {
       const qty = variationQuantities[stockItem.id] || 0;
       if (qty > 0) {
         addedTotal += qty;
-        addedVariations.push({ stockId: stockItem.id, variationCode: stockItem.barcode, quantity: qty });
+        addedVariations.push({
+          stockId: stockItem.id,
+          variationCode: stockItem.barcode,
+          quantity: qty,
+        });
       }
     });
 
     if (addedTotal === 0) return;
 
     setCart((prevCart) => {
-      const existingItemIndex = prevCart.findIndex((item) => item.productId === selectedProduct.id);
+      const existingItemIndex = prevCart.findIndex(
+        (item) => item.productId === selectedProduct.id,
+      );
 
       if (existingItemIndex >= 0) {
         const updatedCart = [...prevCart];
@@ -273,33 +317,36 @@ const POSPage = () => {
 
         const mergedVariations = [...item.variations];
         addedVariations.forEach((addedVar) => {
-          const varIndex = mergedVariations.findIndex((v) => v.stockId === addedVar.stockId);
-          if (varIndex >= 0) mergedVariations[varIndex].quantity += addedVar.quantity;
+          const varIndex = mergedVariations.findIndex(
+            (v) => v.stockId === addedVar.stockId,
+          );
+          if (varIndex >= 0)
+            mergedVariations[varIndex].quantity += addedVar.quantity;
           else mergedVariations.push(addedVar);
         });
 
         // FIXED: Added discount and photo
-        updatedCart[existingItemIndex] = { 
-          ...item, 
-          totalQuantity: item.totalQuantity + addedTotal, 
+        updatedCart[existingItemIndex] = {
+          ...item,
+          totalQuantity: item.totalQuantity + addedTotal,
           variations: mergedVariations,
           discount: selectedProduct.discount || 0,
-          photo: selectedProduct.photo
+          photo: selectedProduct.photo,
         };
         return updatedCart;
       } else {
         // FIXED: Added discount and photo
         return [
-          ...prevCart, 
-          { 
-            productId: selectedProduct.id, 
-            name: selectedProduct.name, 
-            price: selectedProduct.price, 
-            discount: selectedProduct.discount || 0, 
-            photo: selectedProduct.photo, 
-            totalQuantity: addedTotal, 
-            variations: addedVariations 
-          }
+          ...prevCart,
+          {
+            productId: selectedProduct.id,
+            name: selectedProduct.name,
+            price: selectedProduct.price,
+            discount: selectedProduct.discount || 0,
+            photo: selectedProduct.photo,
+            totalQuantity: addedTotal,
+            variations: addedVariations,
+          },
         ];
       }
     });
@@ -315,14 +362,16 @@ const POSPage = () => {
 
   const confirmRemove = () => {
     if (itemToRemoveId) {
-      setCart((prev) => prev.filter((item) => item.productId !== itemToRemoveId));
+      setCart((prev) =>
+        prev.filter((item) => item.productId !== itemToRemoveId),
+      );
     }
     setIsRemoveModalOpen(false);
     setItemToRemoveId(null);
   };
 
   const handleFinalizeCheckout = async () => {
-    if (isSubmitting) return; 
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
@@ -338,7 +387,8 @@ const POSPage = () => {
         subtotal: subtotal,
         discount: discountAmount,
         total_price: payableAmount,
-        amount_tendered: typeof tenderedAmount === "number" ? tenderedAmount : 0,
+        amount_tendered:
+          typeof tenderedAmount === "number" ? tenderedAmount : 0,
         change: change,
         cart: cart,
       };
@@ -352,8 +402,11 @@ const POSPage = () => {
       if (!response.ok) throw new Error("Failed to record sale in backend");
 
       const result = await response.json();
-      const totalItems = cart.reduce((sum, item) => sum + item.totalQuantity, 0);
-      
+      const totalItems = cart.reduce(
+        (sum, item) => sum + item.totalQuantity,
+        0,
+      );
+
       try {
         await axios.post(`${API_URL}/audit`, {
           users_id: authUserId,
@@ -368,14 +421,15 @@ const POSPage = () => {
         console.error("Failed to log audit", auditErr);
       }
 
-      alert(`Sale Recorded Successfully! Invoice No: ${result.receipt.invoice_no}`);
+      alert(
+        `Sale Recorded Successfully! Invoice No: ${result.receipt.invoice_no}`,
+      );
 
       setCart([]);
       setIsCheckoutOpen(false);
       setTenderedAmount("");
       setDiscountPercent(0);
       window.location.reload();
-      
     } catch (error) {
       console.error("Checkout Error:", error);
       alert("Failed to record sale. Check console for details.");
@@ -383,32 +437,36 @@ const POSPage = () => {
     }
   };
 
-  const subtotal = cart.reduce((sum, item) => sum + Number(item.price) * item.totalQuantity, 0);
-  const currentDiscount = typeof discountPercent === "number" ? discountPercent : 0;
+  const subtotal = cart.reduce(
+    (sum, item) => sum + Number(item.price) * item.totalQuantity,
+    0,
+  );
+  const currentDiscount =
+    typeof discountPercent === "number" ? discountPercent : 0;
   const discountAmount = subtotal * (currentDiscount / 100);
   const payableAmount = subtotal - discountAmount;
-  const change = typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
+  const change =
+    typeof tenderedAmount === "number" ? tenderedAmount - payableAmount : 0;
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800 relative">
-      
       {/* THE VISUAL FLASH INDICATOR FOR SUCCESSFUL SCANS */}
-      <div className={`fixed inset-0 pointer-events-none z-[100] transition-colors duration-200 ${scanFlash ? 'bg-green-500/20 border-[12px] border-green-500' : 'bg-transparent border-0 border-transparent'}`} />
+      <div
+        className={`fixed inset-0 pointer-events-none z-[100] transition-colors duration-200 ${scanFlash ? "bg-green-500/20 border-[12px] border-green-500" : "bg-transparent border-0 border-transparent"}`}
+      />
 
-      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
-
+      <div className="hidden lg:block h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
       <div className="flex flex-1 overflow-hidden min-w-0 w-full">
         <div className="flex-1 flex flex-col h-full px-4 pt-4 md:px-6 md:pt-5 min-w-0 max-w-full">
-          
-          <POSHeader 
-            userName={userName} 
-            searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} 
-            isLoading={isLoading} 
+          <POSHeader
+            userName={userName}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            isLoading={isLoading}
             isScanning={isScanning}
             setIsScanning={setIsScanning}
           />
-          
+
           {/* Show Scanner OR the normal Categories/Grid */}
           {isScanning ? (
             <div className="flex-1 pb-6 w-full h-full flex flex-col">
@@ -416,13 +474,21 @@ const POSPage = () => {
             </div>
           ) : (
             <>
-              <POSCategories categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
+              <POSCategories
+                categories={categories}
+                activeCategory={activeCategory}
+                setActiveCategory={setActiveCategory}
+              />
               <main className="flex-1 overflow-y-auto custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-                <ProductGrid products={products} isLoading={isLoading} getTotalAvailableStock={getTotalAvailableStock} onProductClick={handleProductClick} />
+                <ProductGrid
+                  products={products}
+                  isLoading={isLoading}
+                  getTotalAvailableStock={getTotalAvailableStock}
+                  onProductClick={handleProductClick}
+                />
               </main>
             </>
           )}
-
         </div>
 
         <CartPanel
@@ -443,7 +509,10 @@ const POSPage = () => {
         variationQuantities={variationQuantities}
         getQtyInCart={getQtyInCart}
         updateVariationQty={updateVariationQty}
-        onClose={() => { setSelectedProduct(null); setVariationQuantities({}); }}
+        onClose={() => {
+          setSelectedProduct(null);
+          setVariationQuantities({});
+        }}
         onRecordSale={handleRecordSale}
       />
 
@@ -464,10 +533,28 @@ const POSPage = () => {
       {isRemoveModalOpen && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative flex flex-col items-center text-center">
-            <h2 className="text-lg font-bold text-[#223843] mb-6" style={{ fontFamily: "Raleway, sans-serif" }}>Are you sure you want to remove this item?</h2>
+            <h2
+              className="text-lg font-bold text-[#223843] mb-6"
+              style={{ fontFamily: "Raleway, sans-serif" }}
+            >
+              Are you sure you want to remove this item?
+            </h2>
             <div className="flex gap-3 w-full">
-              <button onClick={() => { setIsRemoveModalOpen(false); setItemToRemoveId(null); }} className="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-bold hover:bg-gray-50 transition-colors">Cancel</button>
-              <button onClick={confirmRemove} className="flex-1 py-2.5 rounded-lg bg-[#cb4a4a] hover:bg-red-800 text-white font-bold transition-colors shadow-sm">Confirm</button>
+              <button
+                onClick={() => {
+                  setIsRemoveModalOpen(false);
+                  setItemToRemoveId(null);
+                }}
+                className="flex-1 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-bold hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemove}
+                className="flex-1 py-2.5 rounded-lg bg-[#cb4a4a] hover:bg-red-800 text-white font-bold transition-colors shadow-sm"
+              >
+                Confirm
+              </button>
             </div>
           </div>
         </div>

@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import type { InventoryItem } from "../../types";
 import { ChevronDownIcon, ChevronUpIcon } from "@heroicons/react/24/outline";
-import StatusBadge from "./StatusBadge";
 import InventoryItemDetails from "./InventoryItemDetails";
-import { formatDate } from "../../utils";
+import { formatDate } from "../../utils/date.utils";
+import StatusBadge from "./StatusBadge";
 
 interface InventoryRowProps {
   item: InventoryItem;
@@ -23,7 +23,6 @@ const InventoryRow = ({
 }: InventoryRowProps) => {
   const [expanded, setExpanded] = useState(false);
 
-  // Force collapse the row if the user enters Delete Mode
   useEffect(() => {
     if (isDeleteMode) {
       setExpanded(false);
@@ -33,10 +32,17 @@ const InventoryRow = ({
   return (
     <>
       <tr
-        className={`border-b border-gray-200 hover:bg-blue-50/30 transition-colors ${expanded ? "bg-gray-50" : "bg-white"} ${isSelected ? "bg-red-50/40" : ""}`}
+        // UX FIX: Entire row is clickable when not in delete mode
+        onClick={() => !isDeleteMode && setExpanded(!expanded)}
+        className={`border-b border-gray-200 hover:bg-blue-50/30 transition-colors ${
+          expanded ? "bg-gray-50" : "bg-white"
+        } ${isSelected ? "bg-red-50/40" : ""} ${!isDeleteMode ? "cursor-pointer" : ""}`}
       >
-        {/* Conditional First Column: Index Number OR Checkbox */}
-        <td className="p-4 text-center">
+        <td 
+          className="p-4 text-center" 
+          // Stop row expansion when clicking the checkbox cell
+          onClick={(e) => isDeleteMode && e.stopPropagation()}
+        >
           {isDeleteMode ? (
             <input
               type="checkbox"
@@ -45,9 +51,7 @@ const InventoryRow = ({
               className="rounded border-gray-400 w-4 h-4 text-[#b13e3e] focus:ring-[#b13e3e] cursor-pointer"
             />
           ) : (
-            <span className="text-gray-400 text-xs font-bold uppercase">
-              --
-            </span>
+            <span className="text-gray-400 text-xs font-bold uppercase">--</span>
           )}
         </td>
 
@@ -61,7 +65,6 @@ const InventoryRow = ({
               />
             ) : (
               <span className="text-xs font-bold text-gray-500">
-                {/* Fallback to '?' if name is null so charAt doesn't crash */}
                 {(item.name || "?").charAt(0).toUpperCase()}
               </span>
             )}
@@ -74,8 +77,7 @@ const InventoryRow = ({
           {item.sku || "N/A"}
         </td>
         <td className="p-2 text-[#223843] text-center font-medium">
-          {/* CRITICAL FIX: Safe number casting before toFixed */}₱
-          {Number(item.price || 0).toFixed(2)}
+          ₱{Number(item.price || 0).toFixed(2)}
         </td>
         <td className="p-2 text-gray-600 text-center truncate">
           {item.nearest_expiry ? formatDate(item.nearest_expiry) : "N/A"}
@@ -88,11 +90,10 @@ const InventoryRow = ({
         <td className="p-2 text-center font-bold">{item.total_stock || 0}</td>
         <td className="p-2 text-center">{item.suggested_order || 0}</td>
 
-        {/* Conditional Action Column */}
         {!isDeleteMode && (
           <td className="p-2 text-center animate-in fade-in">
+            {/* The button's click naturally bubbles up to the <tr>, expanding the row */}
             <button
-              onClick={() => setExpanded(!expanded)}
               className={`p-1.5 rounded-full transition-colors mx-auto flex items-center justify-center ${expanded ? "bg-[#004385] text-white" : "hover:bg-gray-200 text-[#223843]"}`}
             >
               {expanded ? (
@@ -105,10 +106,10 @@ const InventoryRow = ({
         )}
       </tr>
 
-      {/* Expanded Details Section */}
       {expanded && !isDeleteMode && (
         <tr>
-          <td colSpan={10} className="p-0">
+          {/* Prevent expanding/collapsing when interacting with the inner details menu */}
+          <td colSpan={10} className="p-0 cursor-default" onClick={(e) => e.stopPropagation()}>
             <InventoryItemDetails item={item} onUpdate={onUpdate} />
           </td>
         </tr>

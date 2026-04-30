@@ -2,6 +2,7 @@ import {
   CheckIcon,
   XMarkIcon,
   PencilSquareIcon,
+  QrCodeIcon, // IMPORT NEW ICON
 } from "@heroicons/react/24/outline";
 import type { StockItem } from "../../types";
 
@@ -10,7 +11,7 @@ interface StockRowProps {
   isEditing: boolean;
   isDeleteMode: boolean;
   isSelected: boolean;
-  editForm: { amount: string; expiry_date: string; supplier: string }; // ADDED supplier to type
+  editForm: { amount: string; expiry_date: string; supplier: string };
   isSavingEdit: boolean;
   onToggleSelect: (id: string) => void;
   onEditChange: (field: string, value: string) => void;
@@ -18,6 +19,7 @@ interface StockRowProps {
   onSubmitEdit: (id: string) => void;
   onCancelEdit: () => void;
   formatDisplayDate: (date?: string | null) => string;
+  onGenerateQR: (barcode: string) => void; // ADDED PROP
 }
 
 export default function StockRow({
@@ -33,6 +35,7 @@ export default function StockRow({
   onSubmitEdit,
   onCancelEdit,
   formatDisplayDate,
+  onGenerateQR, // ADDED DESTRUCTURE
 }: StockRowProps) {
   const isExpired =
     stock.expiry_date &&
@@ -58,7 +61,6 @@ export default function StockRow({
       <td className="py-3 px-4 text-center text-sm">
         {formatDisplayDate(stock.restock_date)}
       </td>
-      {/* ADDED Supplier Cell */}
       <td className="py-3 px-4 text-center text-sm font-medium text-gray-700">
         {isEditing ? (
           <input
@@ -129,13 +131,22 @@ export default function StockRow({
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => onStartEdit(stock)}
-              className="p-1.5 text-gray-400 hover:text-[#e6d04f] transition-colors rounded-full hover:bg-gray-100 mx-auto"
-              title="Edit Batch"
-            >
-              <PencilSquareIcon className="w-5 h-5" />
-            </button>
+            <div className="flex justify-center gap-1">
+              <button
+                onClick={() => onGenerateQR(stock.barcode)}
+                className="p-1.5 text-gray-400 hover:text-[#087CA7] transition-colors rounded-full hover:bg-blue-50"
+                title="Generate QR Code"
+              >
+                <QrCodeIcon className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => onStartEdit(stock)}
+                className="p-1.5 text-gray-400 hover:text-[#e6d04f] transition-colors rounded-full hover:bg-yellow-50"
+                title="Edit Batch"
+              >
+                <PencilSquareIcon className="w-5 h-5" />
+              </button>
+            </div>
           )}
         </td>
       )}

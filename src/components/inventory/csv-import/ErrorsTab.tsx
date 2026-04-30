@@ -36,8 +36,8 @@ export default function ErrorsTab({
           inline and click the checkmark to resolve, or discard unneeded rows.
         </p>
       </div>
-      <div className="overflow-visible">
-        <table className="w-full text-left table-fixed border-collapse">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left table-fixed border-collapse min-w-[800px]">
           <thead className="bg-gray-50 text-gray-600 text-[11px] uppercase font-bold border-b border-gray-200">
             <tr>
               <th className="p-3 text-left w-1/3">Goods</th>

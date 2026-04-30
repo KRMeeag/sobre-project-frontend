@@ -247,8 +247,7 @@ export default function ProfilePage() {
 
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
-      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
-
+      <div className="hidden lg:block h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
       <main className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] [&::-webkit-scrollbar-thumb]:rounded-full transition-colors flex items-center justify-center">
         <div className="w-full max-w-262.5">
           <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-6">
