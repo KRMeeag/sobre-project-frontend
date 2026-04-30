@@ -7,7 +7,9 @@ const API_URL = import.meta.env.VITE_API_URL;
 export function useSelectionManager(
   filteredInventory: InventoryItem[],
   refreshData: () => void,
-  showToast: (msg: string, type: "success" | "error") => void
+  showToast: (msg: string, type: "success" | "error") => void,
+  userId: string | null,
+  storeId: string | null,
 ) {
   const [isDeleteMode, setIsDeleteMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -38,22 +40,24 @@ export function useSelectionManager(
     setSelectedIds(new Set());
   };
 
-  const handleBulkDelete = async () => {
+ const handleBulkDelete = async () => {
+    // 3. Failsafe to prevent firing if auth isn't loaded
+    if (!userId || !storeId) {
+      showToast("Authentication error. Cannot delete.", "error");
+      return;
+    }
+
     setIsDeleting(true);
     try {
-      // Execute all deletes concurrently
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          axios.delete(`${API_URL}/inventory/${id}`)
+          // 4. ATTACH THE SECURITY PARAMS HERE
+          axios.delete(`${API_URL}/inventory/${id}?users_id=${userId}&store_id=${storeId}`)
         )
       );
       
       showToast(`Successfully deleted ${selectedIds.size} item(s).`, "success");
-      
-      // Refresh the data from the server
       refreshData();
-      
-      // Reset UI states
       cancelDeleteMode();
       setIsConfirmModalOpen(false);
     } catch (err) {
@@ -64,24 +68,18 @@ export function useSelectionManager(
     }
   };
 
-  // --- Derived State ---
   const selectedItemsData = useMemo(() => {
     return filteredInventory.filter((item) => selectedIds.has(item.id));
   }, [filteredInventory, selectedIds]);
 
   return {
-    // States
     isDeleteMode,
     selectedIds,
     isConfirmModalOpen,
     isDeleting,
     selectedItemsData,
-    
-    // Setters
     setIsDeleteMode,
     setIsConfirmModalOpen,
-    
-    // Handlers
     handleToggleSelect,
     handleSelectAll,
     cancelDeleteMode,

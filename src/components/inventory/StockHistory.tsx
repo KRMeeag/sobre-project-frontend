@@ -11,6 +11,7 @@ import type { StockItem } from "../../types";
 import ConfirmDeleteStockModal from "./ConfirmDeleteStockModal";
 import StatCard from "../general/StatCard";
 import StockRow from "./StockRow";
+import QRCodeModal from "./QRCodeModal"; // ADDED IMPORT
 import { supabase } from "../../lib/supabase";
 import { getTomorrowDateString } from "../../utils/csvValidators";
 import { useAddStock } from "../../hooks/useAddStock";
@@ -20,10 +21,12 @@ const API_URL = import.meta.env.VITE_API_URL;
 interface StockHistoryProps {
   inventoryId: string;
   itemName: string;
+  sku: string;
+  storeId: string;
   onUpdate?: () => void;
 }
 
-const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
+const StockHistory = ({ inventoryId, itemName, sku, storeId, onUpdate }: StockHistoryProps) => {
   const [stocks, setStocks] = useState<StockItem[]>([]);
   const [loadingStocks, setIsLoadingStocks] = useState(false);
 
@@ -33,13 +36,13 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  // ADDED supplier to edit form state
   const [editForm, setEditForm] = useState({
     amount: "",
     expiry_date: "",
     supplier: "",
   });
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [qrPayload, setQrPayload] = useState<{ payload: string; barcode: string } | null>(null);
 
   const {
     isAdding,
@@ -49,7 +52,7 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
     isSaving: isSavingAdd,
     isAmountValid,
     isExpValid,
-    isSupplierValid, // DESTRUCTURED new validation flag
+    isSupplierValid, 
     isValid: isAddFormValid,
     submit: submitAdd,
     cancel: cancelAdd,
@@ -128,7 +131,7 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
 
       await Promise.all(
         Array.from(selectedIds).map((id) =>
-          axios.delete(`${API_URL}/stock/${id}?users_id=${userId}`),
+          axios.delete(`${API_URL}/stock/${id}?users_id=${userId}&store_id=${storeId}`),
         ),
       );
       await fetchStock();
@@ -151,13 +154,13 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
       expiry_date: stock.expiry_date
         ? new Date(stock.expiry_date).toISOString().split("T")[0]
         : "",
-      supplier: stock.supplier || "", // LOAD existing supplier
+      supplier: stock.supplier || "",
     });
   };
 
   const submitEdit = async (id: string) => {
     if (!editForm.amount) return alert("Amount is required.");
-    if (!editForm.supplier?.trim()) return alert("Supplier is required."); // STRICT check
+    if (!editForm.supplier?.trim()) return alert("Supplier is required."); 
 
     setIsSavingEdit(true);
     try {
@@ -166,10 +169,10 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
       } = await supabase.auth.getSession();
       const userId = session?.user?.id || "";
 
-      await axios.patch(`${API_URL}/stock/${id}?users_id=${userId}`, {
+      await axios.patch(`${API_URL}/stock/${id}?users_id=${userId}&store_id=${storeId}`, {
         amount: Number(editForm.amount),
         expiry_date: editForm.expiry_date || null,
-        supplier: editForm.supplier.trim(), // INJECT payload
+        supplier: editForm.supplier.trim(),
       });
       await fetchStock();
       if (onUpdate) onUpdate();
@@ -269,7 +272,6 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
                 {isDeleteMode && (
                   <th className="py-3 px-4 w-[5%] text-center"></th>
                 )}
-                {/* ADJUSTED width percentages for the new column */}
                 <th className="py-3 px-4 text-center w-[15%]">Barcode</th>
                 <th className="py-3 px-4 text-center w-[20%]">Stocked On</th>
                 <th className="py-3 px-4 text-center w-[20%]">Supplier</th>
@@ -292,7 +294,6 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
                   <td className="py-2 px-4 text-center text-xs text-gray-400 italic">
                     Today
                   </td>
-                  {/* NEW Supplier Input Cell */}
                   <td className="py-2 px-4">
                     <input
                       type="text"
@@ -352,7 +353,7 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
               {stocks.length === 0 && !isAdding && (
                 <tr>
                   <td
-                    colSpan={isDeleteMode ? 7 : 6} // INCREASED colSpan by 1
+                    colSpan={isDeleteMode ? 7 : 6}
                     className="py-12 text-center text-gray-500"
                   >
                     <ArchiveBoxXMarkIcon className="w-12 h-12 mx-auto mb-3 text-gray-300" />
@@ -380,6 +381,17 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
                   onSubmitEdit={submitEdit}
                   onCancelEdit={() => setEditingId(null)}
                   formatDisplayDate={formatDisplayDate}
+                  onGenerateQR={(barcode) => {
+                    const payloadObj = {
+                      sku: sku,
+                      store_id: storeId,
+                      barcode: barcode || "",
+                    };
+                    setQrPayload({
+                      payload: JSON.stringify(payloadObj),
+                      barcode: barcode || "N/A"
+                    });
+                  }}
                 />
               ))}
             </tbody>
@@ -393,6 +405,14 @@ const StockHistory = ({ inventoryId, onUpdate }: StockHistoryProps) => {
         onConfirm={handleBulkDelete}
         selectedStocks={stocks.filter((s) => selectedIds.has(s.id))}
         isDeleting={isDeleting}
+      />
+
+      <QRCodeModal
+        isOpen={!!qrPayload}
+        onClose={() => setQrPayload(null)}
+        payload={qrPayload?.payload || ""}
+        itemName={itemName}
+        barcode={qrPayload?.barcode || ""}
       />
     </div>
   );

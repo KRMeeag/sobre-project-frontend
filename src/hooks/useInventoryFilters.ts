@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import type { InventoryItem } from "../types";
 
-export type FilterKey = "category" | "stockStatus" | "supplier" | "restock" | "expiry";
+export type FilterKey =
+  | "category"
+  | "stockStatus"
+  | "supplier"
+  | "restock"
+  | "expiry";
 
 export function useInventoryFilters(inventory: InventoryItem[]) {
   // --- Text Search ---
@@ -14,7 +19,9 @@ export function useInventoryFilters(inventory: InventoryItem[]) {
 
   // --- Sidebar Filters ---
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedStockStatuses, setSelectedStockStatuses] = useState<string[]>([]);
+  const [selectedStockStatuses, setSelectedStockStatuses] = useState<string[]>(
+    [],
+  );
   const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([]);
   const [isRestockNeeded, setIsRestockNeeded] = useState(false);
   const [isExpiringSoon, setIsExpiringSoon] = useState(false);
@@ -29,7 +36,7 @@ export function useInventoryFilters(inventory: InventoryItem[]) {
   });
 
   // --- Add Modal ---
-  const [isAddModalOpen, setIsAddModalOpen] = useState(true)
+  const [isAddModalOpen, setIsAddModalOpen] = useState(true);
 
   const toggleFilterAccordion = (key: FilterKey) => {
     setFiltersOpen((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -59,8 +66,12 @@ export function useInventoryFilters(inventory: InventoryItem[]) {
       limit: 1000,
     };
 
-    if (selectedCategories.length > 0) params.category = selectedCategories;
-    if (selectedSuppliers.length > 0) params.supplier = selectedSuppliers;
+    // FIXED: Convert arrays to comma-separated strings to prevent Axios serialization bugs
+    if (selectedCategories.length > 0)
+      params.category = selectedCategories.join(",");
+    if (selectedSuppliers.length > 0)
+      params.supplier = selectedSuppliers.join(",");
+
     if (isRestockNeeded) params.restock_needed = true;
     if (isExpiringSoon) params.expiry_status = true;
 
@@ -79,12 +90,12 @@ export function useInventoryFilters(inventory: InventoryItem[]) {
   // Filters the raw inventory array locally based on stock status
   const filteredInventory = useMemo(() => {
     if (selectedStockStatuses.length === 0) return inventory;
-    
+
     return inventory.filter((item) => {
       let status = "In Stock";
       if (item.total_stock === 0) status = "Out of Stock";
       else if (item.total_stock <= 10) status = "Low Stock"; // Assuming 10 is your local low stock threshold for the UI
-      
+
       return selectedStockStatuses.includes(status);
     });
   }, [inventory, selectedStockStatuses]);
@@ -114,7 +125,7 @@ export function useInventoryFilters(inventory: InventoryItem[]) {
     isExpiringSoon,
     filtersOpen,
     isAddModalOpen,
-    
+
     // Setters
     setSearchInput,
     setActiveSort,
@@ -125,7 +136,7 @@ export function useInventoryFilters(inventory: InventoryItem[]) {
     setIsRestockNeeded,
     setIsExpiringSoon,
     setIsAddModalOpen,
-    
+
     // Derived & Handlers
     apiParams,
     filteredInventory,

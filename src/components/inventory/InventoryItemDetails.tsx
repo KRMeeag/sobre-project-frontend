@@ -29,25 +29,23 @@ const InventoryItemDetails = ({
     item.photo || null,
   );
 
-  // 1. UPDATED STATE KEY
   const [formData, setFormData] = useState({
     name: item.name || "",
     sku: item.sku || "",
     category: item.category || "",
-    primary_supplier: item.primary_supplier || "", // Changed from supplier
+    primary_supplier: item.primary_supplier || "",
     price: item.price || 0,
     cost: item.cost || 0,
     discount: item.discount || 0,
     photo: item.photo || "",
   });
 
-  // 2. UPDATED DIRTY CHECK
   useEffect(() => {
     const hasChanges =
       formData.name.trim() !== (item.name || "").trim() ||
       formData.category.trim() !== (item.category || "").trim() ||
       formData.primary_supplier.trim() !==
-        (item.primary_supplier || "").trim() || // Changed from supplier
+        (item.primary_supplier || "").trim() ||
       Number(formData.price) !== Number(item.price || 0) ||
       Number(formData.cost) !== Number(item.cost || 0) ||
       Number(formData.discount) !== Number(item.discount || 0) ||
@@ -67,13 +65,12 @@ const InventoryItemDetails = ({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isDirty]);
 
-  // 3. UPDATED REGEX WHITELIST ARRAY
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     const { name, value } = e.target;
     if (
-      ["name", "category", "primary_supplier"].includes(name) && // Changed from supplier
+      ["name", "category", "primary_supplier"].includes(name) &&
       !/^[a-zA-Z0-9\s.,'\-&]*$/.test(value)
     )
       return;
@@ -103,7 +100,7 @@ const InventoryItemDetails = ({
       const userId = session?.user?.id || "";
 
       await axios.patch(
-        `${API_URL}/inventory/${item.id}?users_id=${userId}`,
+        `${API_URL}/inventory/${item.id}?users_id=${userId}&store_id=${item.store_id}`,
         formData,
       );
 
@@ -124,12 +121,11 @@ const InventoryItemDetails = ({
     )
       return;
 
-    // 4. UPDATED RESET STATE
     setFormData({
       name: item.name || "",
       sku: item.sku || "",
       category: item.category || "",
-      primary_supplier: item.primary_supplier || "", // Changed from supplier
+      primary_supplier: item.primary_supplier || "",
       price: item.price || 0,
       cost: item.cost || 0,
       discount: item.discount || 0,
@@ -251,9 +247,8 @@ const InventoryItemDetails = ({
             viewClassName={`bg-gray-100/50 text-gray-600 ${readOnlyClass}`}
           />
 
-          {/* 5. UPDATED DETAIL FIELD NAME AND DISPLAY VALUE */}
           <DetailField
-            label="Primary Supplier" // UI labeling updated
+            label="Primary Supplier" 
             name="primary_supplier"
             value={formData.primary_supplier}
             onChange={handleChange}
@@ -333,6 +328,8 @@ const InventoryItemDetails = ({
       <StockHistory
         inventoryId={item.id}
         itemName={item.name}
+        sku={item.sku || ""} // NEW
+        storeId={item.store_id || ""} // NEW
         onUpdate={onUpdate}
       />
     </div>

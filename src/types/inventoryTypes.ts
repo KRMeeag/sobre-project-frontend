@@ -18,6 +18,7 @@ export interface InventoryItem {
   is_restock_needed: boolean;
   is_expiry_soon: boolean;
   created_at: string;
+  store_id?: string;
 }
 
 export interface StockItem {

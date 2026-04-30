@@ -79,6 +79,8 @@ const InventoryPage = () => {
       fetchFilters();
     },
     showToast,
+    userId,
+    storeId
   );
   const {
     isDeleteMode,
