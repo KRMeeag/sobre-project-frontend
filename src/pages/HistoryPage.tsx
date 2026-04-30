@@ -132,8 +132,7 @@ export default function HistoryPage() {
 
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
-      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
-
+      <div className="hidden lg:block h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
       <main className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] transition-colors">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-2">
@@ -404,21 +403,25 @@ function ActionTag({ action }: { action: string }) {
   let styleClasses = "";
   switch (action) {
     case "Adding": // Matches Inventory Green
-      styleClasses = "bg-[#daf4a6] text-[#4b6618]"; 
+      styleClasses = "bg-[#daf4a6] text-[#4b6618]";
       break;
     case "Updating": // Matches Inventory Yellow
-      styleClasses = "bg-[#fff5b8] text-[#8c7e00]"; 
+      styleClasses = "bg-[#fff5b8] text-[#8c7e00]";
       break;
     case "Deleting": // Matches Inventory Red
-      styleClasses = "bg-[#ffccc7] text-[#8c2d2d]"; 
+      styleClasses = "bg-[#ffccc7] text-[#8c2d2d]";
       break;
     default:
       styleClasses = "bg-gray-100 text-gray-500";
   }
 
   return (
-    <div className={`px-3 py-1 inline-flex items-center justify-center rounded-full text-xs font-bold shadow-sm ${styleClasses}`}>
-      <span className="font-['Work_Sans'] leading-none whitespace-nowrap">{action}</span>
+    <div
+      className={`px-3 py-1 inline-flex items-center justify-center rounded-full text-xs font-bold shadow-sm ${styleClasses}`}
+    >
+      <span className="font-['Work_Sans'] leading-none whitespace-nowrap">
+        {action}
+      </span>
     </div>
   );
 }

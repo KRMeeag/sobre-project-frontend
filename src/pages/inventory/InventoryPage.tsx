@@ -144,8 +144,7 @@ const InventoryPage = () => {
         type={toast.type}
         onClose={hideToast}
       />
-      <div className="h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
-
+      <div className="hidden lg:block h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
       <div className="flex flex-1 overflow-hidden relative">
         {/* MOBILE SIDEBAR OVERLAY */}
         {/* Clicking this dark background closes the sidebar on mobile */}
