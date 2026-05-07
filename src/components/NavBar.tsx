@@ -155,8 +155,9 @@ const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
             <span className="text-xs font-medium">Log Out</span>
           </button>
         </div>
+      </aside>
 
-        {/* LOGOUT MODAL */}
+       {/* LOGOUT MODAL */}
         {isLogoutModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative flex flex-col items-center text-center">
@@ -182,8 +183,6 @@ const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
             </div>
           </div>
         )}
-
-      </aside>
     </>
   );
 };
