@@ -10,7 +10,6 @@ import {
   HashtagIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
-import DataTable from "../components/DataTable";
 
 interface SaleItem {
   id: string;
@@ -39,9 +38,7 @@ const API_URL = import.meta.env.VITE_API_URL;
 export default function SalesPage() {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(
-    null,
-  );
+  const [selectedReceiptId, setSelectedReceiptId] = useState<string | null>(null);
   const [authUserId, setAuthUserId] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -195,9 +192,12 @@ export default function SalesPage() {
   return (
     <div className="flex flex-col h-full font-['Work_Sans'] bg-[#f3f4f6] overflow-hidden relative">
       <div className="hidden lg:block h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
-      <main className="flex-1 p-8 overflow-y-scroll bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] transition-colors">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-[#004385] font-['Raleway'] mb-2">
+      
+      {/* RESPONSIVE UPDATE: overflow-x-hidden and w-full applied */}
+      <main className="flex-1 p-4 md:p-8 overflow-y-scroll overflow-x-hidden bg-[#f3f4f6] [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#c4bcc0] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#087CA7] transition-colors w-full">
+        
+        <div className="mb-6 md:mb-8">
+          <h1 className="text-2xl md:text-4xl font-bold text-[#004385] font-['Raleway'] mb-1 md:mb-2">
             Sales Summary
           </h1>
           <p className="text-gray-500 text-sm">
@@ -205,212 +205,164 @@ export default function SalesPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 shrink-0">
-          <SummaryCard
-            title="Revenue"
-            value={formatCurrency(metrics.revenue)}
-            range={revenueRange}
-            onRangeChange={setRevenueRange}
-          />
-          <SummaryCard
-            title="Net Profit"
-            value={formatCurrency(metrics.profit)}
-            range={profitRange}
-            onRangeChange={setProfitRange}
-          />
-          <SummaryCard
-            title="Total Cost"
-            value={formatCurrency(metrics.cost)}
-            range={costRange}
-            onRangeChange={setCostRange}
-          />
-          <SummaryCard
-            title="Items Sold"
-            value={metrics.items.toString()}
-            range={itemsRange}
-            onRangeChange={setItemsRange}
-          />
+        {/* RESPONSIVE UPDATE: 2 columns on mobile, 4 on desktop */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-8 w-full shrink-0">
+          <SummaryCard title="Revenue" value={formatCurrency(metrics.revenue)} range={revenueRange} onRangeChange={setRevenueRange} />
+          <SummaryCard title="Net Profit" value={formatCurrency(metrics.profit)} range={profitRange} onRangeChange={setProfitRange} />
+          <SummaryCard title="Total Cost" value={formatCurrency(metrics.cost)} range={costRange} onRangeChange={setCostRange} />
+          <SummaryCard title="Items Sold" value={metrics.items.toString()} range={itemsRange} onRangeChange={setItemsRange} />
         </div>
 
-        {/* --- RESTRUCTURED FILTER SECTION TO MATCH HISTORY PAGE --- */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 shrink-0 w-full">
-          {/* LEFT GROUP: Search, Time, and Date grouped together */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search width adjusted to sm:w-64 to match HistoryPage */}
-            <div className="relative w-full sm:w-64 h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
-              <input
-                type="text"
-                placeholder="Search invoice number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-transparent outline-none text-[14px] text-gray-700 placeholder-gray-400"
-              />
-              <MagnifyingGlassIcon
-                className="w-5 h-5 text-gray-400 ml-2 shrink-0"
-                strokeWidth={2}
-              />
-            </div>
-
-            <div className="flex bg-white border border-gray-300 rounded-lg shadow-sm h-11 focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
-              <DynamicFilterInput
-                type="time"
-                label="Start Time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                icon={<ClockIcon className="w-4 h-4" />}
-                borderRight
-              />
-              <DynamicFilterInput
-                type="time"
-                label="End Time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                icon={<ClockIcon className="w-4 h-4" />}
-              />
-            </div>
-
-            <div className="flex bg-white border border-gray-300 rounded-lg shadow-sm h-11 focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
-              <DynamicFilterInput
-                type="date"
-                label="Start Date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                icon={<CalendarDaysIcon className="w-4 h-4" />}
-                borderRight
-              />
-              <DynamicFilterInput
-                type="date"
-                label="End Date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                icon={<CalendarDaysIcon className="w-4 h-4" />}
-              />
-            </div>
+        {/* --- GRID BASED FILTERS (Matches HistoryPage exact layout) --- */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-6 w-full shrink-0">
+          
+          {/* 1. Search Bar */}
+          <div className="relative w-full h-11 bg-white border border-gray-300 rounded-lg flex items-center px-4 shadow-sm focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            <input
+              type="text"
+              placeholder="Search invoice number..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full min-w-0 bg-transparent outline-none text-[13px] sm:text-[14px] text-gray-700 placeholder-gray-400"
+            />
+            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400 ml-2 shrink-0" strokeWidth={2} />
           </div>
 
-          {/* RIGHT GROUP: Items Amount and Discount */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Width adjusted to sm:w-40 to match HistoryPage */}
-            <div className="relative h-11 w-full sm:w-40 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
-              {/* Added CSS classes to hide number spinners for perfect alignment */}
+          {/* 2. Time Filter */}
+          <div className="flex w-full bg-white border border-gray-300 rounded-lg shadow-sm h-11 focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            <DynamicFilterInput type="time" label="Start Time" value={startTime} onChange={(e) => setStartTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} borderRight />
+            <DynamicFilterInput type="time" label="End Time" value={endTime} onChange={(e) => setEndTime(e.target.value)} icon={<ClockIcon className="w-4 h-4" />} />
+          </div>
+
+          {/* 3. Date Filter */}
+          <div className="flex w-full bg-white border border-gray-300 rounded-lg shadow-sm h-11 focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            <DynamicFilterInput type="date" label="Start Date" value={startDate} onChange={(e) => setStartDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} borderRight />
+            <DynamicFilterInput type="date" label="End Date" value={endDate} onChange={(e) => setEndDate(e.target.value)} icon={<CalendarDaysIcon className="w-4 h-4" />} />
+          </div>
+
+          {/* 4. Items Amount and Discount Filter */}
+          <div className="flex w-full gap-3">
+            <div className="relative h-11 flex-1 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
               <input
                 type="number"
                 placeholder="Item Amount"
                 value={itemsAmount}
                 onChange={(e) => setItemsAmount(e.target.value)}
-                className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10 appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full min-w-0 h-full bg-transparent outline-none text-[13px] sm:text-[14px] text-gray-700 pl-3 pr-8 appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <HashtagIcon className="w-4 h-4 absolute right-3 pointer-events-none text-gray-400" />
+              <HashtagIcon className="w-4 h-4 absolute right-2 sm:right-3 pointer-events-none text-gray-400" />
             </div>
 
-            <div className="relative h-11 w-full sm:w-40 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
+            <div className="relative h-11 flex-1 bg-white border border-gray-300 rounded-lg shadow-sm flex items-center focus-within:ring-2 focus-within:ring-[#087CA7] focus-within:border-transparent transition-all">
               <input
                 type="number"
                 placeholder="Discount"
                 value={discountFilter}
                 onChange={(e) => setDiscountFilter(e.target.value)}
-                className="w-full h-full bg-transparent outline-none text-[14px] text-gray-700 pl-4 pr-10 appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-full min-w-0 h-full bg-transparent outline-none text-[13px] sm:text-[14px] text-gray-700 pl-3 pr-8 appearance-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
-              <span className="absolute right-3 pointer-events-none text-gray-400 font-bold text-[14px]">
+              <span className="absolute right-2 sm:right-3 pointer-events-none text-gray-400 font-bold text-[13px] sm:text-[14px]">
                 %
               </span>
             </div>
           </div>
         </div>
 
-        <DataTable
-          headers={[
-            "Date",
-            "Time",
-            "User",
-            <span className="whitespace-nowrap px-2 block">
-              Invoice Number
-            </span>,
-            "Subtotal",
-            "Discount",
-            <span className="whitespace-nowrap px-2 block">Total Price</span>,
-            <span className="whitespace-nowrap px-2 block">Items Amount</span>,
-            InfoHeaderIcon,
-          ]}
-          loading={loading}
-          empty={filteredReceipts.length === 0}
-          emptyMessage="No sales match your search filters."
-        >
-          {filteredReceipts.map((r, index) => {
-            const discountPercentage =
-              r.subtotal > 0
-                ? Math.round((1 - r.total_price / r.subtotal) * 100)
-                : 0;
-            return (
-              <tr
-                key={r.id}
-                className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfc]"}`}
-              >
-                <td className="p-4 text-center text-gray-500 whitespace-nowrap">
-                  {formatDate(r.created_at)}
-                </td>
-                <td className="p-4 text-center text-gray-500 whitespace-nowrap">
-                  {formatTime(r.created_at)}
-                </td>
-
-                <td className="p-4">
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden">
-                      {r.users?.photo ? (
-                        <img
-                          src={r.users.photo}
-                          alt="avatar"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="white"
-                          className="w-5 h-5 mt-1"
-                        >
-                          <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                        </svg>
-                      )}
-                    </div>
-                    <span className="font-bold text-[#223843] whitespace-nowrap">
-                      {r.users?.username || "Unknown"}
-                    </span>
-                  </div>
-                </td>
-
-                <td
-                  className="p-4 text-center text-gray-500 truncate max-w-[120px] sm:max-w-[160px]"
-                  title={r.invoice_no}
-                >
-                  {r.invoice_no}
-                </td>
-                <td className="p-4 text-center text-gray-500">
-                  {formatCurrency(r.subtotal)}
-                </td>
-                <td className="p-4 text-center text-gray-500">
-                  {discountPercentage}%
-                </td>
-                <td className="p-4 font-bold text-[#223843] text-center">
-                  {formatCurrency(r.total_price)}
-                </td>
-                <td className="p-4 text-center text-gray-500">
-                  {r.total_items}
-                </td>
-
-                <td className="p-4">
-                  <div className="flex justify-center items-center">
-                    <button
-                      onClick={() => setSelectedReceiptId(r.id)}
-                      className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#002f5a] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors shadow-sm cursor-pointer focus:outline-none"
-                    >
-                      i
-                    </button>
-                  </div>
-                </td>
+        {/* --- NATIVE SCROLLABLE TABLE (Replaces old DataTable for mobile layout) --- */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto w-full">
+          <table className="w-full text-left border-collapse table-fixed min-w-[1000px] transition-all">
+            <thead className="bg-[#f8f9fa] text-[#033860] text-xs uppercase tracking-wider font-bold border-b border-gray-200">
+              <tr>
+                <th className="p-4 w-[10%] text-center">Date</th>
+                <th className="p-4 w-[10%] text-center">Time</th>
+                <th className="p-4 w-[15%] text-left pl-6">User</th>
+                <th className="p-4 w-[20%] text-center">Invoice Number</th>
+                <th className="p-4 w-[10%] text-center">Subtotal</th>
+                <th className="p-4 w-[10%] text-center">Discount</th>
+                <th className="p-4 w-[10%] text-center">Total Price</th>
+                <th className="p-4 w-[10%] text-center">Items Amount</th>
+                <th className="p-4 w-[5%] text-center">{InfoHeaderIcon}</th>
               </tr>
-            );
-          })}
-        </DataTable>
+            </thead>
+            <tbody className="text-sm">
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-[#223843]">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004385] mx-auto mb-2"></div>
+                    Loading Data...
+                  </td>
+                </tr>
+              ) : filteredReceipts.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-gray-500">
+                    No sales match your search filters.
+                  </td>
+                </tr>
+              ) : (
+                filteredReceipts.map((r, index) => {
+                  const discountPercentage = r.subtotal > 0 ? Math.round((1 - r.total_price / r.subtotal) * 100) : 0;
+                  return (
+                    <tr
+                      key={r.id}
+                      className={`border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors ${index % 2 === 0 ? "bg-white" : "bg-[#fcfcfc]"}`}
+                    >
+                      <td className="p-4 text-center text-gray-500 whitespace-nowrap text-sm">
+                        {formatDate(r.created_at)}
+                      </td>
+                      <td className="p-4 text-center text-gray-500 whitespace-nowrap text-sm">
+                        {formatTime(r.created_at)}
+                      </td>
+
+                      <td className="p-4 pl-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#d1d5db] flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
+                            {r.users?.photo ? (
+                              <img src={r.users.photo} alt="avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <svg viewBox="0 0 24 24" fill="white" className="w-5 h-5 mt-1">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="font-bold text-[#223843] whitespace-nowrap text-sm">
+                            {r.users?.username || "Unknown"}
+                          </span>
+                        </div>
+                      </td>
+
+                      <td className="p-4 text-center text-gray-500 truncate text-sm" title={r.invoice_no}>
+                        {r.invoice_no}
+                      </td>
+                      <td className="p-4 text-center text-gray-500 text-sm">
+                        {formatCurrency(r.subtotal)}
+                      </td>
+                      <td className="p-4 text-center text-gray-500 text-sm">
+                        {discountPercentage}%
+                      </td>
+                      <td className="p-4 font-bold text-[#223843] text-center text-sm">
+                        {formatCurrency(r.total_price)}
+                      </td>
+                      <td className="p-4 text-center text-gray-500 text-sm">
+                        {r.total_items}
+                      </td>
+
+                      <td className="p-4 text-center">
+                        <div className="flex justify-center items-center">
+                          <button
+                            onClick={() => setSelectedReceiptId(r.id)}
+                            className="w-6 h-6 bg-[#4a5c6a] hover:bg-[#002f5a] text-white rounded-full font-serif italic text-[13px] flex items-center justify-center transition-colors shadow-sm cursor-pointer focus:outline-none"
+                          >
+                            i
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {selectedReceiptId && (
           <DetailsModal
@@ -424,6 +376,8 @@ export default function SalesPage() {
   );
 }
 
+// ---------------- Helper Components ----------------
+
 interface SummaryCardProps {
   title: string;
   value: string;
@@ -433,16 +387,16 @@ interface SummaryCardProps {
 
 function SummaryCard({ title, value, range, onRangeChange }: SummaryCardProps) {
   return (
-    <div className="bg-white px-5 py-6 rounded-2xl shadow-sm flex flex-col justify-center border border-gray-200 transition-shadow hover:shadow-md relative">
-      <div className="flex justify-between items-center w-full mb-3">
-        <h3 className="text-[#a1a1aa] text-[13px] font-bold tracking-wide uppercase">
+    <div className="bg-white px-4 sm:px-5 py-5 sm:py-6 rounded-2xl shadow-sm flex flex-col justify-center border border-gray-200 transition-shadow hover:shadow-md relative">
+      <div className="flex flex-col xl:flex-row justify-between xl:items-center gap-2 xl:gap-0 w-full mb-2 sm:mb-3">
+        <h3 className="text-[#a1a1aa] text-[11px] sm:text-[13px] font-bold tracking-wide uppercase">
           {title}
         </h3>
-        <div className="relative">
+        <div className="relative self-start xl:self-auto">
           <select
             value={range}
             onChange={(e) => onRangeChange(e.target.value)}
-            className="appearance-none bg-blue-50 text-[#087CA7] text-[11px] font-bold py-1 pl-2 pr-6 rounded outline-none cursor-pointer hover:bg-blue-100 transition-colors"
+            className="appearance-none bg-blue-50 text-[#087CA7] text-[10px] sm:text-[11px] font-bold py-1 pl-2 pr-6 rounded outline-none cursor-pointer hover:bg-blue-100 transition-colors"
           >
             <option value="today">Today</option>
             <option value="7days">Last 7 Days</option>
@@ -455,7 +409,7 @@ function SummaryCard({ title, value, range, onRangeChange }: SummaryCardProps) {
           />
         </div>
       </div>
-      <p className="text-[32px] font-bold text-[#004385] font-['Arvo'] text-center mt-1">
+      <p className="text-[22px] sm:text-[32px] font-bold text-[#004385] font-['Arvo'] mt-1">
         {value}
       </p>
     </div>
@@ -471,57 +425,30 @@ interface DynamicFilterInputProps {
   borderRight?: boolean;
 }
 
-function DynamicFilterInput({
-  type,
-  label,
-  value,
-  onChange,
-  icon,
-  borderRight,
-}: DynamicFilterInputProps) {
+function DynamicFilterInput({ type, label, value, onChange, icon, borderRight }: DynamicFilterInputProps) {
   return (
-    <div
-      className={`relative flex items-center w-32 sm:w-36 px-3 ${borderRight ? "border-r border-gray-300" : ""}`}
-    >
+    // min-w-0 prevents mobile screen stretching
+    <div className={`relative flex items-center flex-1 min-w-0 px-2 sm:px-3 py-1 ${borderRight ? "border-r border-gray-300" : ""}`}>
       <input
-        type={
-          type === "date" && !value
-            ? "text"
-            : type === "time" && !value
-              ? "text"
-              : type
-        }
+        type={type === "date" && !value ? "text" : type === "time" && !value ? "text" : type}
         placeholder={label}
         value={value}
         onChange={onChange}
-        onFocus={(e: React.FocusEvent<HTMLInputElement>) =>
-          (e.target.type = type)
-        }
+        onFocus={(e: React.FocusEvent<HTMLInputElement>) => (e.target.type = type)}
         onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
           if (!e.target.value) e.target.type = "text";
         }}
-        className="w-full bg-transparent outline-none text-[13px] text-gray-700 placeholder-gray-400 cursor-pointer"
+        className="w-full min-w-0 bg-transparent outline-none text-[12px] sm:text-[13px] text-gray-700 placeholder-gray-400 cursor-pointer pr-6"
       />
-      <div className="absolute right-3 flex items-center justify-center text-gray-400 pointer-events-none bg-white pl-1">
+      <div className="absolute right-2 flex items-center justify-center text-gray-400 pointer-events-none bg-white">
         {icon}
       </div>
     </div>
   );
 }
 
-function DetailsModal({
-  receiptId,
-  authUserId,
-  onClose,
-}: {
-  receiptId: string;
-  authUserId: string | null;
-  onClose: () => void;
-}) {
-  const [data, setData] = useState<{
-    receipt: Receipt;
-    items: SaleItem[];
-  } | null>(null);
+function DetailsModal({ receiptId, authUserId, onClose }: { receiptId: string; authUserId: string | null; onClose: () => void }) {
+  const [data, setData] = useState<{ receipt: Receipt; items: SaleItem[] } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -570,40 +497,40 @@ function DetailsModal({
 
   const subtotal = data?.receipt?.subtotal || 0;
   const totalPrice = data?.receipt?.total_price || 0;
-  const discountPercentage =
-    subtotal > 0 ? Math.round((1 - totalPrice / subtotal) * 100) : 0;
+  const discountPercentage = subtotal > 0 ? Math.round((1 - totalPrice / subtotal) * 100) : 0;
 
   return (
-    <div className="fixed inset-0 bg-[#35435a]/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-175 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="pt-6 px-8 pb-4 flex justify-between items-center">
-          <h2 className="text-[15px] font-['Work_Sans'] text-gray-500">
+    <div className="fixed inset-0 bg-[#35435a]/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-3xl shadow-xl w-full max-w-175 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+        
+        {/* Modal Header */}
+        <div className="pt-6 px-4 sm:px-8 pb-4 flex justify-between items-center shrink-0">
+          <h2 className="text-[14px] sm:text-[15px] font-['Work_Sans'] text-gray-500">
             Details for Invoice No.{" "}
-            <span className="font-bold text-slate-800">
+            <span className="font-bold text-slate-800 break-all">
               {data?.receipt.invoice_no || "..."}
             </span>
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-[#b13e3e] transition-colors focus:outline-none"
+            className="text-gray-400 hover:text-[#b13e3e] transition-colors focus:outline-none ml-2"
           >
-            <XMarkIcon className="w-5 h-5" />
+            <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
 
-        <div className="px-8 max-h-[50vh] overflow-y-auto custom-scrollbar">
+        {/* Modal Table - Wrapped in overflow-x-auto so it doesn't break modal bounds */}
+        <div className="px-2 sm:px-8 overflow-y-auto overflow-x-auto custom-scrollbar flex-1">
           {loading ? (
             <div className="flex justify-center items-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#004385]"></div>
             </div>
           ) : (
-            <table className="w-full text-left">
+            <table className="w-full text-left min-w-[500px]">
               <thead className="text-[12px] text-gray-400 font-medium border-b border-gray-100">
                 <tr>
-                  <th className="pb-4 pl-12 text-center font-normal">Item</th>
-                  <th className="pb-4 text-center font-normal">
-                    Price Individual
-                  </th>
+                  <th className="pb-4 pl-4 sm:pl-12 text-left font-normal">Item</th>
+                  <th className="pb-4 text-center font-normal">Price</th>
                   <th className="pb-4 text-center font-normal">Amount</th>
                   <th className="pb-4 text-center font-normal">Subtotal</th>
                   <th className="pb-4 w-12 text-center font-normal">
@@ -611,20 +538,15 @@ function DetailsModal({
                   </th>
                 </tr>
               </thead>
-              <tbody className="text-[14px]">
+              <tbody className="text-[13px] sm:text-[14px]">
                 {data?.items.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="py-4">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
-                          <span className="text-gray-400 text-[10px] font-medium">
-                            Img
-                          </span>
+                  <tr key={item.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                    <td className="py-4 pl-2 sm:pl-0">
+                      <div className="flex items-center gap-3 sm:gap-4">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gray-100 rounded-full flex items-center justify-center shrink-0 overflow-hidden border border-gray-200 hidden sm:flex">
+                          <span className="text-gray-400 text-[9px] sm:text-[10px] font-medium">Img</span>
                         </div>
-                        <span className="font-bold text-slate-800 leading-tight max-w-30">
+                        <span className="font-bold text-slate-800 leading-tight max-w-24 sm:max-w-40 break-words">
                           {item.product_name}
                         </span>
                       </div>
@@ -640,9 +562,7 @@ function DetailsModal({
                     </td>
                     <td className="py-4 text-right pr-2">
                       <button
-                        onClick={() =>
-                          handleVoidItem(item.id, item.product_name)
-                        }
+                        onClick={() => handleVoidItem(item.id, item.product_name)}
                         title={`Void ${item.product_name}`}
                         className="p-1.5 bg-[#b13e3e] text-white rounded-md hover:bg-[#8c2d2d] transition-colors shadow-sm inline-flex focus:outline-none"
                       >
@@ -656,38 +576,32 @@ function DetailsModal({
           )}
         </div>
 
-        <div className="px-8 py-8 flex justify-between items-end border-t border-gray-100 bg-[#f8f9fa]">
-          <div className="space-y-2 text-[15px]">
-            <div className="flex justify-between w-64">
+        {/* Modal Footer */}
+        <div className="px-4 sm:px-8 py-6 flex flex-col sm:flex-row justify-between items-center sm:items-end gap-6 sm:gap-0 border-t border-gray-100 bg-[#f8f9fa] shrink-0">
+          <div className="space-y-2 text-[14px] sm:text-[15px] w-full sm:w-auto">
+            <div className="flex justify-between w-full sm:w-64">
               <span className="font-bold text-gray-600">Subtotal:</span>
-              <span className="text-gray-800 font-medium">
-                P{subtotal.toFixed(2)}
-              </span>
+              <span className="text-gray-800 font-medium">P{subtotal.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between w-64">
+            <div className="flex justify-between w-full sm:w-64">
               <span className="font-bold text-gray-600">Discount:</span>
-              <span className="text-gray-800 font-medium">
-                {discountPercentage}%
-              </span>
+              <span className="text-gray-800 font-medium">{discountPercentage}%</span>
             </div>
-            <div className="flex justify-between w-64 pt-3 text-lg">
-              <span className="font-extrabold text-[#004385]">
-                Total Price:
-              </span>
-              <span className="font-extrabold text-[#004385]">
-                P{totalPrice.toFixed(2)}
-              </span>
+            <div className="flex justify-between w-full sm:w-64 pt-3 text-lg">
+              <span className="font-extrabold text-[#004385]">Total Price:</span>
+              <span className="font-extrabold text-[#004385]">P{totalPrice.toFixed(2)}</span>
             </div>
           </div>
 
           <button
             onClick={handleVoid}
-            className="flex items-center gap-2 bg-[#b13e3e] hover:bg-[#8c2d2d] text-white font-bold py-3 px-6 rounded-lg transition-all shadow-sm active:scale-95 text-[15px] font-['Work_Sans'] focus:outline-none"
+            className="w-full sm:w-auto flex justify-center items-center gap-2 bg-[#b13e3e] hover:bg-[#8c2d2d] text-white font-bold py-3 px-6 rounded-lg transition-all shadow-sm active:scale-95 text-[14px] sm:text-[15px] font-['Work_Sans'] focus:outline-none"
           >
             <ArrowUturnLeftIcon className="w-5 h-5 -scale-x-100" />
             Void Entire Sale
           </button>
         </div>
+
       </div>
     </div>
   );
