@@ -16,8 +16,8 @@ import { supabase } from "../lib/supabase";
 interface NavBarProps {
   role: string | null;
   photo?: string | null;
-  isOpen: boolean;       // NEW
-  onClose: () => void;   // NEW
+  isOpen: boolean;       
+  onClose: () => void;   
 }
 
 const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
@@ -78,8 +78,9 @@ const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
       />
 
       {/* THE ACTUAL NAVBAR */}
+      {/* RESPONSIVE FIX: Using h-[100dvh] ensures it fits strictly inside the visible mobile screen */}
       <aside 
-        className={`fixed inset-y-0 left-0 z-50 w-24 h-full bg-white border-r border-gray-200 flex flex-col items-center py-4 shrink-0 shadow-xl transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-50 w-24 h-[100dvh] lg:h-full bg-white border-r border-gray-200 flex flex-col items-center py-4 shrink-0 shadow-xl transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 ${isOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Mobile Close Button */}
         <button 
@@ -89,35 +90,39 @@ const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
           <XMarkIcon className="w-5 h-5" />
         </button>
 
-        <div className="mb-2 flex flex-col items-center mt-4 lg:mt-0">
+        {/* Logo Section - shrink-0 prevents it from being crushed */}
+        <div className="mb-2 flex flex-col items-center mt-4 lg:mt-0 shrink-0">
           <img
             src="/assets/background1.png"
             alt="Sobre Logo"
-            className="w-12 h-12 object-contain"
+            className="w-10 h-10 lg:w-12 lg:h-12 object-contain"
           />
-          <h1 className="text-xl font-bold text-gray-800 tracking-wide">Sobre</h1>
+          <h1 className="text-lg lg:text-xl font-bold text-gray-800 tracking-wide mt-1">Sobre</h1>
         </div>
 
-        <nav className="flex-1 w-full px-2 space-y-4 mt-4">
+        {/* Main Navigation */}
+        {/* RESPONSIVE FIX: flex-1, min-h-0, and overflow-y-auto allows the middle items to scroll on tiny screens! */}
+        <nav className="flex-1 min-h-0 overflow-y-auto w-full px-2 flex flex-col gap-2 mt-4 custom-scrollbar">
           {menuItems.map((item) => {
             const isActive = location.pathname.startsWith(item.path);
             return (
               <Link
                 key={item.id}
                 to={item.path}
-                onClick={onClose} // Close menu when a link is clicked on mobile
-                className={`flex flex-col items-center justify-center py-1.5 rounded-xl transition-all duration-200 group
+                onClick={onClose} 
+                className={`flex flex-col items-center justify-center py-2 rounded-xl transition-all duration-200 group shrink-0
                   ${
                     isActive
                       ? "bg-cyan-50 border-2 border-cyan-500 text-cyan-800"
-                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700"
+                      : "text-gray-500 hover:bg-gray-50 hover:text-gray-700 border-2 border-transparent"
                   }`}
               >
+                {/* RESPONSIVE FIX: Adjusted icon and text sizing for better mobile fit */}
                 <item.icon
-                  className={`w-10 h-10 mb-1 ${isActive ? "text-cyan-700" : "text-gray-600 group-hover:text-gray-800"}`}
+                  className={`w-7 h-7 lg:w-9 lg:h-9 mb-1 ${isActive ? "text-cyan-700" : "text-gray-600 group-hover:text-gray-800"}`}
                 />
                 <span
-                  className={`text-xs font-medium ${isActive ? "font-bold" : ""}`}
+                  className={`text-[10px] lg:text-xs font-medium text-center leading-tight ${isActive ? "font-bold" : ""}`}
                 >
                   {item.label}
                 </span>
@@ -126,11 +131,13 @@ const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
           })}
         </nav>
 
-        <div className="w-full px-2 mt-auto pt-4 border-t border-gray-100 flex flex-col items-center space-y-4">
+        {/* Footer Section */}
+        {/* RESPONSIVE FIX: shrink-0 keeps it from disappearing, and pb-6 adds safe zone for bottom phone edge */}
+        <div className="w-full px-2 mt-auto pt-4 border-t border-gray-100 flex flex-col items-center space-y-4 shrink-0 pb-6 lg:pb-2">
           
           <Link
             to="/profile"
-            onClick={onClose} // Close menu on profile click
+            onClick={onClose} 
             className={`flex flex-col items-center transition-all focus:outline-none rounded-full p-1 border-2 ${
               location.pathname === "/profile"
                 ? "border-cyan-500 shadow-md"
@@ -138,21 +145,21 @@ const NavBar = ({ role, photo, isOpen, onClose }: NavBarProps) => {
             }`}
           >
             {photo ? (
-              <div className="w-10 h-10 rounded-full overflow-hidden aspect-square shrink-0 border border-gray-100 bg-gray-50">
+              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full overflow-hidden aspect-square shrink-0 border border-gray-100 bg-gray-50">
                 <img src={photo} alt="Profile" className="w-full h-full object-cover" />
               </div>
             ) : (
-              <UserCircleIcon className={`w-10 h-10 ${location.pathname === "/profile" ? "text-cyan-700" : "text-gray-400"}`} />
+              <UserCircleIcon className={`w-10 h-10 lg:w-12 lg:h-12 ${location.pathname === "/profile" ? "text-cyan-700" : "text-gray-400"}`} />
             )
             }
           </Link>
 
           <button
             onClick={handleLogoutClick}
-            className="flex flex-col items-center text-gray-500 hover:text-red-600 transition-colors pb-4"
+            className="flex flex-col items-center text-gray-500 hover:text-red-600 transition-colors"
           >
-            <ArrowLeftEndOnRectangleIcon className="w-7 h-7 mb-1" />
-            <span className="text-xs font-medium">Log Out</span>
+            <ArrowLeftEndOnRectangleIcon className="w-6 h-6 lg:w-7 lg:h-7 mb-1" />
+            <span className="text-[10px] lg:text-xs font-medium">Log Out</span>
           </button>
         </div>
 
