@@ -22,7 +22,6 @@ export default function ShopDetails() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // NEW: State to hold the fetched barangays for the dropdown
   const [barangaysList, setBarangaysList] = useState<LocationNode[]>([]);
 
   useEffect(() => {
@@ -52,7 +51,6 @@ export default function ShopDetails() {
           setInitialData(fetchedData);
           setFormData(fetchedData);
 
-          // NEW: Resolve the PSGC codes from the names to fetch Barangays
           if (store.province && store.city) {
             try {
               const provinces = await getAllProvinces();
@@ -110,22 +108,25 @@ export default function ShopDetails() {
   };
 
   if (loading) {
-    return <div className="animate-pulse text-gray-500 font-['Work_Sans'] p-10">Loading store data...</div>;
+    return <div className="animate-pulse text-gray-500 font-['Work_Sans'] p-6 md:p-10">Loading store data...</div>;
   }
 
   return (
     <div className="w-full animate-in fade-in duration-300">
-      <div className="bg-white rounded-xl shadow-sm p-10 max-w-212.5 mx-auto">
+      {/* RESPONSIVE FIX: Adjusted padding p-6 on mobile, p-10 on desktop */}
+      <div className="bg-white rounded-xl shadow-sm p-6 md:p-10 max-w-212.5 mx-auto">
 
-        <div className="flex justify-between items-center mb-10 flex-wrap gap-4">
-          <h1 className="text-[32px] font-bold font-['Raleway'] text-slate-800">
+        {/* RESPONSIVE FIX: Flex col on mobile, row on desktop */}
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center mb-8 sm:mb-10 gap-4">
+          <h1 className="text-2xl sm:text-[32px] font-bold font-['Raleway'] text-slate-800">
             Shop Details
           </h1>
           
+          {/* RESPONSIVE FIX: w-full on mobile, auto on desktop */}
           <button 
             onClick={handleSave}
             disabled={!hasChanged || saving || !storeId}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-[14px] font-medium transition-all shadow-sm focus:outline-none ${
+            className={`flex items-center justify-center gap-2 px-5 py-3 sm:py-2.5 rounded-lg text-[14px] font-medium transition-all shadow-sm focus:outline-none w-full sm:w-auto ${
               hasChanged && storeId
                 ? "bg-[#002f5a] hover:bg-[#001f3f] text-white cursor-pointer" 
                 : "bg-gray-300 text-gray-500 cursor-not-allowed"
@@ -142,12 +143,13 @@ export default function ShopDetails() {
           </div>
         )}
 
-        <div className="max-w-175">
-          <h3 className="text-[18px] font-bold text-gray-500 mb-8 font-['Work_Sans']">
+        <div className="w-full max-w-175">
+          <h3 className="text-base sm:text-[18px] font-bold text-gray-500 mb-6 sm:mb-8 font-['Work_Sans']">
             Location
           </h3>
 
-          <div className="flex flex-col gap-6">
+          {/* RESPONSIVE FIX: Reduced gap slightly on mobile */}
+          <div className="flex flex-col gap-4 sm:gap-6">
             <InputField 
               label="Store Name" 
               placeholder="Generic Store Name" 
@@ -167,7 +169,6 @@ export default function ShopDetails() {
               onChange={(val) => handleChange("street", val)}
             />
             
-            {/* UPDATED: Barangay is now a SelectField */}
             <SelectField 
               label="Barangay" 
               defaultOption={barangaysList.length > 0 ? "Select Barangay" : "Loading Barangays..."}
@@ -177,7 +178,6 @@ export default function ShopDetails() {
               disabled={barangaysList.length === 0}
             />
 
-            {/* LOCKED CITY */}
             <InputField 
               label="City" 
               placeholder="Manila" 
@@ -185,7 +185,7 @@ export default function ShopDetails() {
               onChange={(val) => handleChange("city", val)}
               disabled={true} 
             />
-            {/* LOCKED PROVINCE */}
+            
             <InputField 
               label="Province" 
               placeholder="NCR" 
@@ -213,8 +213,9 @@ interface InputFieldProps {
 
 function InputField({ label, placeholder, value, onChange, disabled = false }: InputFieldProps) {
   return (
-    <div className="flex items-center">
-      <label className="w-45 text-[15px] font-medium text-gray-600 shrink-0 font-['Work_Sans']">
+    /* RESPONSIVE FIX: flex-col on mobile so label is on top, flex-row on small-tablet+ */
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0 w-full">
+      <label className="w-full sm:w-45 text-[13px] sm:text-[15px] font-medium text-gray-600 shrink-0 font-['Work_Sans']">
         {label}
       </label>
       <input
@@ -223,17 +224,16 @@ function InputField({ label, placeholder, value, onChange, disabled = false }: I
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`flex-1 border rounded-lg px-4 py-2.5 text-[14px] focus:outline-none transition-shadow font-['Work_Sans'] ${
+        className={`w-full sm:flex-1 border rounded-lg px-4 py-2.5 text-[13px] sm:text-[14px] focus:outline-none transition-shadow font-['Work_Sans'] ${
           disabled 
             ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed select-none" 
-            : "bg-transparent border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-1 focus:ring-gray-400" 
+            : "bg-white border-gray-300 text-gray-800 placeholder-gray-400 focus:ring-1 focus:ring-gray-400" 
         }`}
       />
     </div>
   );
 }
 
-// NEW: SelectField for matching the InputField layout
 interface SelectFieldProps {
   label: string;
   value: string;
@@ -245,23 +245,23 @@ interface SelectFieldProps {
 
 function SelectField({ label, value, onChange, options, defaultOption, disabled = false }: SelectFieldProps) {
   return (
-    <div className="flex items-center">
-      <label className="w-45 text-[15px] font-medium text-gray-600 shrink-0 font-['Work_Sans']">
+    /* RESPONSIVE FIX: flex-col on mobile so label is on top, flex-row on small-tablet+ */
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-0 w-full">
+      <label className="w-full sm:w-45 text-[13px] sm:text-[15px] font-medium text-gray-600 shrink-0 font-['Work_Sans']">
         {label}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
-        className={`flex-1 border rounded-lg px-4 py-2.5 text-[14px] focus:outline-none transition-shadow font-['Work_Sans'] ${
+        className={`w-full sm:flex-1 border rounded-lg px-4 py-2.5 text-[13px] sm:text-[14px] focus:outline-none transition-shadow font-['Work_Sans'] ${
           disabled 
             ? "bg-gray-100 border-gray-200 text-gray-500 cursor-not-allowed select-none" 
-            : "bg-transparent border-gray-300 text-gray-800 focus:ring-1 focus:ring-gray-400 cursor-pointer" 
+            : "bg-white border-gray-300 text-gray-800 focus:ring-1 focus:ring-gray-400 cursor-pointer" 
         }`}
       >
         <option value="" disabled hidden>{defaultOption}</option>
         {options.map((opt) => (
-          // Use the opt.name as the value to seamlessly save it back to the database string
           <option key={opt.code} value={opt.name}>
             {opt.name}
           </option>
