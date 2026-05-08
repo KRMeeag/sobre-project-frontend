@@ -33,7 +33,7 @@ export default function QRScanner({ onScan }: QRScannerProps) {
           (decodedText) => {
             if (isMounted) latestOnScan.current(decodedText);
           },
-          (errorMessage) => {
+          () => {
             // Ignore background frame errors (e.g., when no QR is in frame)
           }
         );

@@ -71,6 +71,8 @@ const POSPage = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanFlash, setScanFlash] = useState(false);
 
+  const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+
   // FIXED: A dictionary that remembers EXACTLY when each specific item was last scanned
   const lastScannedItems = useRef<Record<string, number>>({});
 
@@ -450,13 +452,12 @@ const POSPage = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden text-gray-800 relative">
-      {/* THE VISUAL FLASH INDICATOR FOR SUCCESSFUL SCANS */}
       <div
         className={`fixed inset-0 pointer-events-none z-[100] transition-colors duration-200 ${scanFlash ? "bg-green-500/20 border-[12px] border-green-500" : "bg-transparent border-0 border-transparent"}`}
       />
 
       <div className="hidden lg:block h-6 bg-[#004385] w-full shrink-0 shadow-md z-20"></div>
-      <div className="flex flex-1 overflow-hidden min-w-0 w-full">
+      <div className="flex flex-1 overflow-hidden min-w-0 w-full relative">
         <div className="flex-1 flex flex-col h-full px-4 pt-4 md:px-6 md:pt-5 min-w-0 max-w-full">
           <POSHeader
             userName={userName}
@@ -465,42 +466,51 @@ const POSPage = () => {
             isLoading={isLoading}
             isScanning={isScanning}
             setIsScanning={setIsScanning}
+            // NEW: Pass data into Header
+            cartItemCount={cart.reduce((sum, item) => sum + item.totalQuantity, 0)}
+            onToggleCart={() => setIsMobileCartOpen(true)}
           />
 
-          {/* Show Scanner OR the normal Categories/Grid */}
           {isScanning ? (
             <div className="flex-1 pb-6 w-full h-full flex flex-col">
               <QRScanner onScan={handleQRScan} />
             </div>
           ) : (
             <>
-              <POSCategories
-                categories={categories}
-                activeCategory={activeCategory}
-                setActiveCategory={setActiveCategory}
-              />
+              <POSCategories categories={categories} activeCategory={activeCategory} setActiveCategory={setActiveCategory} />
               <main className="flex-1 overflow-y-auto custom-scrollbar [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-gray-200 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-gray-300">
-                <ProductGrid
-                  products={products}
-                  isLoading={isLoading}
-                  getTotalAvailableStock={getTotalAvailableStock}
-                  onProductClick={handleProductClick}
-                />
+                <ProductGrid products={products} isLoading={isLoading} getTotalAvailableStock={getTotalAvailableStock} onProductClick={handleProductClick} />
               </main>
             </>
           )}
         </div>
 
-        <CartPanel
-          cart={cart}
-          subtotal={subtotal}
-          discountPercent={discountPercent}
-          setDiscountPercent={setDiscountPercent}
-          discountAmount={discountAmount}
-          payableAmount={payableAmount}
-          onInitiateRemove={initiateRemove}
-          onProceedCheckout={() => setIsCheckoutOpen(true)}
-        />
+        {/* NEW: Mobile Cart Backdrop Filter */}
+        {isMobileCartOpen && (
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 md:hidden animate-in fade-in"
+            onClick={() => setIsMobileCartOpen(false)}
+          ></div>
+        )}
+
+        {/* NEW: Responsive Cart Container Drawer */}
+        <div 
+          className={`fixed inset-y-0 right-0 z-50 transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${
+            isMobileCartOpen ? "translate-x-0" : "translate-x-full"
+          }`}
+        >
+          <CartPanel
+            cart={cart}
+            subtotal={subtotal}
+            discountPercent={discountPercent}
+            setDiscountPercent={setDiscountPercent}
+            discountAmount={discountAmount}
+            payableAmount={payableAmount}
+            onInitiateRemove={initiateRemove}
+            onProceedCheckout={() => setIsCheckoutOpen(true)}
+            onCloseMobileCart={() => setIsMobileCartOpen(false)}
+          />
+        </div>
       </div>
 
       <VariationModal

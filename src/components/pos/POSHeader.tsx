@@ -5,9 +5,11 @@ interface POSHeaderProps {
   isLoading: boolean;
   isScanning: boolean;
   setIsScanning: (val: boolean) => void;
+  cartItemCount: number; // NEW
+  onToggleCart: () => void; // NEW
 }
 
-export default function POSHeader({ userName, searchQuery, setSearchQuery, isLoading, isScanning, setIsScanning }: POSHeaderProps) {
+export default function POSHeader({ userName, searchQuery, setSearchQuery, isLoading, isScanning, setIsScanning, cartItemCount, onToggleCart }: POSHeaderProps) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4 shrink-0 w-full">
       <h1
@@ -17,9 +19,25 @@ export default function POSHeader({ userName, searchQuery, setSearchQuery, isLoa
         Hello, {userName}
       </h1>
 
-      {/* FIXED: Proper Flexbox layout for Button + Search Bar */}
       <div className="flex items-center gap-2 w-full md:w-auto md:min-w-[350px] lg:min-w-[400px]">
         
+        {/* NEW: Mobile Cart Toggle Button */}
+        <button
+          onClick={onToggleCart}
+          className="md:hidden relative w-10 h-10 flex items-center justify-center rounded-lg border bg-white text-gray-500 border-gray-300 shadow-sm shrink-0 hover:bg-gray-50"
+        >
+          <svg width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+            <circle cx="9" cy="21" r="1"></circle>
+            <circle cx="20" cy="21" r="1"></circle>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+          </svg>
+          {cartItemCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 bg-[#cb4a4a] text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full shadow-sm">
+              {cartItemCount > 99 ? '99+' : cartItemCount}
+            </span>
+          )}
+        </button>
+
         {/* QR Scanner Toggle Button */}
         <button
           onClick={() => setIsScanning(!isScanning)}
